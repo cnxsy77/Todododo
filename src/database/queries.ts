@@ -1,10 +1,9 @@
-import { getDatabase } from './schema';
-import type { SQLiteDatabase, SQLTransaction } from 'expo-sqlite';
+import { getDatabase, SQLiteDatabase } from './schema';
 import type { Task, CreateTaskInput, UpdateTaskInput } from '../types';
 
 // 辅助函数：执行查询
 const executeQuery = <T>(
-  tx: SQLTransaction,
+  tx: any,
   sql: string,
   params?: any[]
 ): Promise<T[]> => {
@@ -29,7 +28,7 @@ const executeQuery = <T>(
 
 // 辅助函数：执行单个查询
 const executeSingleQuery = <T>(
-  tx: SQLTransaction,
+  tx: any,
   sql: string,
   params?: any[]
 ): Promise<T | undefined> => {

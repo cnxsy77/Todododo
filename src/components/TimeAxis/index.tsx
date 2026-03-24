@@ -10,12 +10,13 @@ interface TimeAxisProps {
   onNext: () => void;
 }
 
-export const TimeAxis: React.FC<TimeAxisProps> = ({
+export const TimeAxis: React.FC<TimeAxisProps & { onSetView?: (view: ViewType) => void }> = ({
   units,
   currentView,
   onUnitPress,
   onPrevious,
   onNext,
+  onSetView,
 }) => {
   const getViewLabel = () => {
     switch (currentView) {
@@ -46,7 +47,7 @@ export const TimeAxis: React.FC<TimeAxisProps> = ({
                 styles.viewButton,
                 currentView === view && styles.viewButtonActive,
               ]}
-              onPress={() => {}}
+              onPress={() => onSetView?.(view)}
             >
               <Text
                 style={[

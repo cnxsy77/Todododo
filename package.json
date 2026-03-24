@@ -4,8 +4,8 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "type-check": "tsc --noEmit"
   },
@@ -23,15 +23,17 @@
     "expo-constants": "~15.4.0",
     "expo-linking": "~6.2.0",
     "expo-router": "~3.4.0",
-    "expo-sqlite": "~13.0.0",
+    "expo-sqlite": "~13.1.0",
     "expo-status-bar": "~1.6.0",
     "react": "^18.2.0",
+    "react-dom": "18.2.0",
     "react-native": "^0.73.0",
     "react-native-draggable-flatlist": "^4.0.3",
     "react-native-gesture-handler": "~2.14.0",
     "react-native-reanimated": "~3.6.0",
     "react-native-safe-area-context": "^4.8.2",
     "react-native-screens": "~3.29.0",
+    "react-native-web": "~0.19.6",
     "typescript": "^5.9.3",
     "zustand": "^4.5.7"
   }

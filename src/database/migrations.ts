@@ -1,11 +1,17 @@
 import { getDatabase } from './schema';
-import type { SQLiteDatabase, SQLTransaction } from 'expo-sqlite';
+import { Platform } from 'react-native';
 
 // 数据库迁移版本
 const CURRENT_VERSION = 1;
 
 // 运行迁移
 export const runMigrations = (): Promise<void> => {
+  // Web 端不支持 expo-sqlite
+  if (Platform.OS === 'web') {
+    console.log('Web platform: skipping migrations');
+    return Promise.resolve();
+  }
+
   return new Promise((resolve, reject) => {
     getDatabase()
       .then((db) => {

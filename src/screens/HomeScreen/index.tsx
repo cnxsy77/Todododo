@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 import { TimeAxis } from '../../components/TimeAxis';
 import { TaskList } from '../../components/TaskList';
 import { useView, useTasksByRanges } from '../../hooks';
 import { useTaskStore } from '../../stores/taskStore';
 import type { TimeAxisUnit } from '../../types';
 
-export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+export const HomeScreen: React.FC = () => {
+  const router = useRouter();
   const {
     currentView,
     currentDate,
@@ -21,7 +23,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     previous,
   } = useView();
 
-  const { tasks, isLoading, error } = useTasksByRanges(selectedTimeRanges);
+  const { tasks, isLoading, error, groupedTasks, ranges } = useTasksByRanges(selectedTimeRanges);
   const { toggleTaskCompleted, reorderTasks } = useTaskStore();
   const [multiSelectMode, setMultiSelectMode] = useState(false);
 
@@ -47,6 +49,30 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       };
 
       const timestamp = getUnitTimestamp();
+      // 检查是否已经包含该时间戳，避免无限循环
+      if (!selectedRanges.includes(timestamp)) {
+        toggleRangeSelection(timestamp);
+      }
+    } else if (selectedRanges.length > 0) {
+      // 当切换视图时，清空之前的选择，选择当前视图的时间单元
+      const date = new Date(currentDate);
+      const getUnitTimestamp = () => {
+        switch (currentView) {
+          case 'day':
+            return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+          case 'week':
+            const weekStart = new Date(date);
+            const day = weekStart.getDay() || 7;
+            weekStart.setDate(weekStart.getDate() - day + 1);
+            return new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()).getTime();
+          case 'month':
+            return new Date(date.getFullYear(), date.getMonth(), 1).getTime();
+          case 'year':
+            return new Date(date.getFullYear(), 0, 1).getTime();
+        }
+      };
+      const timestamp = getUnitTimestamp();
+      clearRangeSelection();
       toggleRangeSelection(timestamp);
     }
   }, [currentView, currentDate]);
@@ -65,7 +91,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   };
 
   const handleTaskPress = (task: any) => {
-    navigation.navigate('TaskDetail', { taskId: task.id });
+    router.push({
+      pathname: '/task-detail',
+      params: { taskId: task.id },
+    });
   };
 
   const getEmptyMessage = () => {
@@ -87,13 +116,14 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         onUnitPress={handleUnitPress}
         onPrevious={previous}
         onNext={next}
+        onSetView={setView}
       />
 
       {/* 多选模式提示 */}
       {selectedRanges.length > 1 && (
         <View style={styles.multiSelectBar}>
           <Text style={styles.multiSelectText}>
-            已选择 {selectedRanges.length} 个{currentView === 'day' ? '天' : currentView === 'week' ? '周' : currentView === 'month' ? '月' : '年'}
+            已选择 {selectedRanges.length} {currentView === 'day' ? '天' : currentView === 'week' ? '周' : currentView === 'month' ? '月' : '年'}
           </Text>
           <TouchableOpacity onPress={() => clearRangeSelection()}>
             <Text style={styles.clearButton}>清空</Text>
@@ -104,6 +134,9 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       {/* 任务列表 */}
       <TaskList
         tasks={tasks}
+        groupedTasks={groupedTasks}
+        ranges={ranges}
+        currentView={currentView}
         onToggleTask={handleToggleTask}
         onTaskPress={handleTaskPress}
         onReorder={handleReorder}
@@ -113,7 +146,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       {/* 添加任务按钮 */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => navigation.navigate('TaskDetail', { createNew: true })}
+        onPress={() => router.push({ pathname: '/task-detail', params: { createNew: 'true' } })}
         activeOpacity={0.8}
       >
         <Text style={styles.fabText}>+</Text>

@@ -30,11 +30,14 @@
       "package": "com.todododo.app"
     },
     "plugins": [
-      "expo-router",
-      "expo-sqlite"
+      "expo-router"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "web": {
+      "bundler": "metro",
+      "port": 3000
     }
   }
 }

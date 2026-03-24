@@ -1,21 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Input, Button } from '../../components/common';
+import { DatePicker } from '../../components/DatePicker';
 import { useTaskStore } from '../../stores/taskStore';
 import type { PlanType, CreateTaskInput } from '../../types';
 
-interface TaskDetailScreenProps {
-  route: {
-    params?: {
-      taskId?: string;
-      createNew?: boolean;
-    };
-  };
-  navigation: any;
-}
-
-export const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route, navigation }) => {
-  const { taskId, createNew } = route.params || {};
+export const TaskDetailScreen: React.FC = () => {
+  const { taskId, createNew } = useLocalSearchParams();
+  const router = useRouter();
   const { addTask, updateTask, deleteTask, tasks } = useTaskStore();
   const existingTask = taskId ? tasks.find((t) => t.id === taskId) : null;
 
@@ -55,7 +48,7 @@ export const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route, navig
           startDate,
         });
       }
-      navigation.goBack();
+      router.back();
     } catch (error) {
       Alert.alert('错误', '保存失败');
     }
@@ -72,7 +65,7 @@ export const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route, navig
         onPress: async () => {
           try {
             await deleteTask(existingTask.id);
-            navigation.goBack();
+            router.back();
           } catch (error) {
             Alert.alert('错误', '删除失败');
           }
@@ -141,17 +134,11 @@ export const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ route, navig
         {/* 开始日期 */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>开始日期</Text>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => {
-              // 这里可以添加日期选择器
-              Alert.alert('提示', '日期选择器功能待实现');
-            }}
-          >
-            <Text style={styles.dateButtonText}>
-              {new Date(startDate).toLocaleDateString('zh-CN')}
-            </Text>
-          </TouchableOpacity>
+          <DatePicker
+            value={startDate}
+            onChange={setStartDate}
+            label="选择开始日期"
+          />
         </View>
 
         {/* 操作按钮 */}

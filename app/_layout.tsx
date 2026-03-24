@@ -3,11 +3,17 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { runMigrations } from '../src/database/migrations';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 
 export default function RootLayout() {
   useEffect(() => {
     const init = async () => {
+      // Web 端不支持 expo-sqlite
+      if (Platform.OS === 'web') {
+        console.log('Web platform: skipping database initialization');
+        return;
+      }
+
       try {
         await runMigrations();
         console.log('Database initialized successfully');

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useViewStore } from '../stores/viewStore';
 import type { ViewType } from '../types';
 import { getTimeAxisUnits, getSelectedRanges } from '../utils/date';
@@ -17,11 +18,17 @@ export const useView = () => {
     previous,
   } = useViewStore();
 
-  // 获取时间轴单元
-  const timeAxisUnits = getTimeAxisUnits(currentDate, currentView, selectedRanges);
+  // 获取时间轴单元 - 使用 useMemo 避免每次渲染都创建新对象
+  const timeAxisUnits = useMemo(
+    () => getTimeAxisUnits(currentDate, currentView, selectedRanges),
+    [currentDate, currentView, selectedRanges]
+  );
 
-  // 获取选中范围的时间段
-  const selectedTimeRanges = getSelectedRanges(selectedRanges, currentView);
+  // 获取选中范围的时间段 - 使用 useMemo 避免每次渲染都创建新数组
+  const selectedTimeRanges = useMemo(
+    () => getSelectedRanges(selectedRanges, currentView),
+    [selectedRanges, currentView]
+  );
 
   return {
     currentView,

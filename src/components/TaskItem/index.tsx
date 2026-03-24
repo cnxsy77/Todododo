@@ -8,6 +8,7 @@ interface TaskItemProps {
   onPress?: (task: Task) => void;
   onLongPress?: (task: Task) => void;
   isDragging?: boolean;
+  drag?: () => void;
 }
 
 export const TaskItem: React.FC<TaskItemProps> = ({
@@ -16,6 +17,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   onPress,
   onLongPress,
   isDragging = false,
+  drag,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
@@ -42,15 +44,12 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   };
 
   return (
-    <TouchableOpacity
+    <View
       style={[
         styles.container,
         task.isCompleted && styles.completed,
         isDragging && styles.dragging,
       ]}
-      onPress={() => onPress?.(task)}
-      onLongPress={() => onLongPress?.(task)}
-      activeOpacity={0.7}
     >
       {/* 完成状态复选框 */}
       <TouchableOpacity
@@ -76,18 +75,22 @@ export const TaskItem: React.FC<TaskItemProps> = ({
             autoFocus
           />
         ) : (
-          <Text
-            style={[styles.title, task.isCompleted && styles.titleCompleted]}
-            numberOfLines={2}
-          >
-            {task.title}
-          </Text>
-        )}
+          <>
+            <Text
+              style={[styles.title, task.isCompleted && styles.titleCompleted]}
+              numberOfLines={2}
+              onPress={() => onPress?.(task)}
+              onLongPress={() => onLongPress?.(task)}
+            >
+              {task.title}
+            </Text>
 
-        {task.description && !isEditing && (
-          <Text style={styles.description} numberOfLines={1}>
-            {task.description}
-          </Text>
+            {task.description && (
+              <Text style={styles.description} numberOfLines={1}>
+                {task.description}
+              </Text>
+            )}
+          </>
         )}
 
         <View style={styles.footer}>
@@ -103,11 +106,18 @@ export const TaskItem: React.FC<TaskItemProps> = ({
         </View>
       </View>
 
-      {/* 拖拽手柄 */}
-      <View style={styles.dragHandle}>
+      {/* 拖拽手柄 - 长按触发拖拽 */}
+      <TouchableOpacity
+        style={styles.dragHandle}
+        onPress={drag}
+        onLongPress={drag}
+        delayLongPress={250}
+        activeOpacity={0.7}
+        disabled={!drag}
+      >
         <Text style={styles.dragHandleText}>⋮⋮</Text>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </View>
   );
 };
 

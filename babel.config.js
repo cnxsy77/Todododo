@@ -1,5 +1,5 @@
 module.exports = {
-  presets: ['expo-router/babel'],
+  presets: ['babel-preset-expo'],
   plugins: [
     'react-native-reanimated/plugin',
   ],
