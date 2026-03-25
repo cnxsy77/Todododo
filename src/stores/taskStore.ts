@@ -98,7 +98,22 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   reorderTasks: async (planType: string, taskIds: string[]) => {
     await queries.updateTaskOrders(planType, taskIds);
-    // 本地更新会在组件中处理
+    // 更新本地状态：按照 taskIds 的顺序重新排列 tasks
+    set((state) => {
+      // 创建任务 ID 到任务对象的映射
+      const taskMap = new Map(state.tasks.map((t) => [t.id, t]));
+      // 按照 taskIds 顺序重新构建 tasks 数组
+      const reorderedTasks = taskIds
+        .map((id) => taskMap.get(id))
+        .filter((t): t is Task => t !== undefined);
+      // 添加不在 taskIds 中的任务（如果有）
+      state.tasks.forEach((task) => {
+        if (!taskIds.includes(task.id)) {
+          reorderedTasks.push(task);
+        }
+      });
+      return { tasks: reorderedTasks };
+    });
   },
 
   moveTaskToDate: async (id: string, newStart: number, newEnd?: number) => {

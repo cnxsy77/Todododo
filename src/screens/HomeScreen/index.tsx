@@ -24,7 +24,7 @@ export const HomeScreen: React.FC = () => {
   } = useView();
 
   const { tasks, isLoading, error, groupedTasks, ranges } = useTasksByRanges(selectedTimeRanges);
-  const { toggleTaskCompleted, reorderTasks } = useTaskStore();
+  const { toggleTaskCompleted, reorderTasks, moveTaskToDate } = useTaskStore();
   const [multiSelectMode, setMultiSelectMode] = useState(false);
 
   // 如果没有选择任何范围，默认选择当前时间单元
@@ -87,7 +87,22 @@ export const HomeScreen: React.FC = () => {
   };
 
   const handleReorder = (taskIds: string[]) => {
-    reorderTasks(currentView, taskIds);
+    // 转换 view 到 planType
+    const planTypeMap: Record<string, string> = {
+      day: 'daily',
+      week: 'weekly',
+      month: 'monthly',
+      year: 'yearly',
+    };
+    reorderTasks(planTypeMap[currentView], taskIds);
+  };
+
+  const handleMoveTaskToDate = async (
+    taskId: string,
+    newStart: number,
+    newEnd?: number
+  ) => {
+    await moveTaskToDate(taskId, newStart, newEnd);
   };
 
   const handleTaskPress = (task: any) => {
@@ -123,11 +138,18 @@ export const HomeScreen: React.FC = () => {
       {selectedRanges.length > 1 && (
         <View style={styles.multiSelectBar}>
           <Text style={styles.multiSelectText}>
-            已选择 {selectedRanges.length} {currentView === 'day' ? '天' : currentView === 'week' ? '周' : currentView === 'month' ? '月' : '年'}
+            已选择 {selectedRanges.length} {currentView === 'day' ? '天' : currentView === 'week' ? '周' : currentView === 'month' ? '月' : '年'} {selectedRanges.length >= 3 && '(最多 3 个)'})
           </Text>
           <TouchableOpacity onPress={() => clearRangeSelection()}>
             <Text style={styles.clearButton}>清空</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {/* 已达最大选择数量提示 */}
+      {selectedRanges.length >= 3 && (
+        <View style={styles.maxSelectWarning}>
+          <Text style={styles.maxSelectWarningText}>已达最大选择数量（3 个）</Text>
         </View>
       )}
 
@@ -140,6 +162,7 @@ export const HomeScreen: React.FC = () => {
         onToggleTask={handleToggleTask}
         onTaskPress={handleTaskPress}
         onReorder={handleReorder}
+        onMoveTaskToDate={handleMoveTaskToDate}
         emptyMessage={getEmptyMessage()}
       />
 
@@ -177,6 +200,17 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  maxSelectWarning: {
+    backgroundColor: '#FF9500',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  maxSelectWarningText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '500',
   },
   fab: {
     position: 'absolute',

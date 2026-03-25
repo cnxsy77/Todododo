@@ -32,6 +32,10 @@ export const useViewStore = create<ViewState & ViewAction>((set, get) => ({
     if (isSelected) {
       set({ selectedRanges: current.filter((t) => t !== timestamp) });
     } else {
+      // 限制最多选择 3 个日期
+      if (current.length >= 3) {
+        return; // 已达到最大选择数量，不再添加
+      }
       set({ selectedRanges: [...current, timestamp].sort((a, b) => a - b) });
     }
   },
