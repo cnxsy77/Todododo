@@ -41,6 +41,8 @@ export const TaskList: React.FC<TaskListProps> = ({
   const [localRenderData, setLocalRenderData] = useState<(DraggableTask | { id: string; isHeader: true; rangeStart: number; rangeEnd: number })[]>([]);
   // 标记是否正在使用本地数据（拖拽后等待同步）
   const [isUsingLocalData, setIsUsingLocalData] = useState(false);
+  // 使用 ref 跟踪拖拽后待同步的状态（避免闭包问题）
+  const pendingSyncRef = React.useRef(false);
 
   // 排序后的范围
   const sortedRanges = useMemo(() => {
@@ -88,7 +90,13 @@ export const TaskList: React.FC<TaskListProps> = ({
   }, [groupedTasks, sortedRanges]);
 
   // 当 props 数据变化时，重置本地数据标记并更新
+  // 但只在没有待同步的拖拽操作时才执行
   React.useEffect(() => {
+    // 如果有待同步的拖拽操作，不要覆盖本地数据
+    if (pendingSyncRef.current) {
+      return;
+    }
+
     setData(tasks);
     setLocalRenderData(renderDataFromProps);
     setIsUsingLocalData(false);
@@ -154,43 +162,19 @@ export const TaskList: React.FC<TaskListProps> = ({
 
     // 此时 draggedItem 一定是 DraggableTask
     const draggableDraggedItem = draggedItem as DraggableTask;
-    const fromRangeStart = draggableDraggedItem.rangeStart; // 注意：这里的 rangeStart 还是原来的值，尚未更新
+    const fromRangeStart = draggableDraggedItem.rangeStart;
 
-    // 根据 to 位置前后的项目来判断目标范围
-    // 规则：
-    // 1. 优先看 to 前面的项目（排除被拖拽的任务本身，即 to 位置）
-    // 2. 如果前面是头部或任务，使用该项目的范围
-    // 3. 如果 to 在最前面，看后面的项目
-
+    // 关键修复：只查找最近的头部来确定 toRangeStart，忽略中间的任务
+    // 这是因为任务可能属于不同的日期范围，只有头部能准确标识范围边界
     let toRangeStart: number = fromRangeStart; // 默认使用源范围
 
-    // 向前查找（排除 to 位置）
-    let prevIndex = to - 1;
-    while (prevIndex >= 0) {
-      const prevItem = newData[prevIndex];
-      if (!('isHeader' in prevItem)) {
-        // 前面是任务，使用该任务的范围
-        toRangeStart = prevItem.rangeStart;
+    // 向前查找最近的头部
+    for (let i = to - 1; i >= 0; i--) {
+      const item = newData[i];
+      if ('isHeader' in item && item.isHeader) {
+        // 找到头部，使用该头部的范围
+        toRangeStart = item.rangeStart;
         break;
-      } else {
-        // 前面是头部，使用该头部的范围
-        toRangeStart = prevItem.rangeStart;
-        break;
-      }
-    }
-
-    // 如果前面没有找到（to 在最前面），向后查找（排除 to 位置）
-    if (toRangeStart === fromRangeStart) {
-      let nextIndex = to + 1;
-      while (nextIndex < newData.length) {
-        const nextItem = newData[nextIndex];
-        if (!('isHeader' in nextItem)) {
-          toRangeStart = nextItem.rangeStart;
-          break;
-        } else {
-          toRangeStart = nextItem.rangeStart;
-          break;
-        }
       }
     }
 
@@ -213,19 +197,57 @@ export const TaskList: React.FC<TaskListProps> = ({
           },
         };
 
-        // 找到目标头部的位置，在其后插入
+        // 找到目标头部的位置
         const targetHeaderIndex = newLocalData.findIndex(
           item => 'isHeader' in item && item.rangeStart === targetRange.start
         );
 
         if (targetHeaderIndex >= 0) {
-          // 找到目标范围内已有的任务，插在它们后面
-          let insertIndex = targetHeaderIndex + 1;
-          while (insertIndex < newLocalData.length &&
-                 !('isHeader' in newLocalData[insertIndex]) &&
-                 (newLocalData[insertIndex] as DraggableTask).rangeStart === targetRange.start) {
-            insertIndex++;
+          // 在 newLocalData 中，从目标头部后面开始，找到最后一个属于目标范围的任务
+          let lastTargetTaskLocalIndex = -1;
+          for (let i = newLocalData.length - 1; i > targetHeaderIndex; i--) {
+            const item = newLocalData[i];
+            if (!('isHeader' in item) &&
+                (item as DraggableTask).rangeStart === targetRange.start) {
+              lastTargetTaskLocalIndex = i;
+              break;
+            }
           }
+
+          // 在 newData 中找到最后一个目标范围任务的索引
+          let lastTargetTaskNewDataIndex = -1;
+          for (let i = newData.length - 1; i >= 0; i--) {
+            const item = newData[i];
+            if (!('isHeader' in item) &&
+                (item as DraggableTask).rangeStart === targetRange.start &&
+                i !== to) {
+              lastTargetTaskNewDataIndex = i;
+              break;
+            }
+          }
+
+          let insertIndex: number;
+
+          if (lastTargetTaskLocalIndex === -1) {
+            insertIndex = targetHeaderIndex + 1;
+          } else {
+            if (to > lastTargetTaskNewDataIndex) {
+              insertIndex = lastTargetTaskLocalIndex + 1;
+            } else {
+              let firstTargetTaskLocalIndex = -1;
+              for (let i = targetHeaderIndex + 1; i < newLocalData.length; i++) {
+                const item = newLocalData[i];
+                if (!('isHeader' in item) &&
+                    (item as DraggableTask).rangeStart === targetRange.start) {
+                  firstTargetTaskLocalIndex = i;
+                  break;
+                }
+              }
+              insertIndex = firstTargetTaskLocalIndex !== -1 ? firstTargetTaskLocalIndex : targetHeaderIndex + 1;
+            }
+          }
+
+          insertIndex = Math.min(insertIndex, newLocalData.length);
           newLocalData.splice(insertIndex, 0, updatedTask);
         } else {
           newLocalData.push(updatedTask);
@@ -233,9 +255,13 @@ export const TaskList: React.FC<TaskListProps> = ({
 
         setLocalRenderData(newLocalData);
         setIsUsingLocalData(true);
+        pendingSyncRef.current = true;
 
-        // 然后调用异步更新
         onMoveTaskToDate?.(draggableDraggedItem.taskId, targetRange.start, targetRange.end);
+
+        setTimeout(() => {
+          pendingSyncRef.current = false;
+        }, 100);
       }
     } else {
       // 同日期内排序 - 保持头部位置不变，只排序任务
