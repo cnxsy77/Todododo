@@ -37,11 +37,10 @@ export const TaskList: React.FC<TaskListProps> = ({
   emptyMessage = '暂无任务',
 }) => {
   const [data, setData] = useState(tasks);
-
-  // 当数据变化时更新本地状态
-  React.useEffect(() => {
-    setData(tasks);
-  }, [tasks]);
+  // 用于多日期场景的本地数据状态（用于拖拽时立即更新 UI）
+  const [localRenderData, setLocalRenderData] = useState<(DraggableTask | { id: string; isHeader: true; rangeStart: number; rangeEnd: number })[]>([]);
+  // 标记是否正在使用本地数据（拖拽后等待同步）
+  const [isUsingLocalData, setIsUsingLocalData] = useState(false);
 
   // 排序后的范围
   const sortedRanges = useMemo(() => {
@@ -62,8 +61,8 @@ export const TaskList: React.FC<TaskListProps> = ({
     }
   }, [currentView]);
 
-  // 构建带有日期头的渲染数据
-  const renderDataWithHeaders = useMemo(() => {
+  // 构建带有日期头的渲染数据（从 props 计算）
+  const renderDataFromProps = useMemo(() => {
     const result: (DraggableTask | { id: string; isHeader: true; rangeStart: number; rangeEnd: number })[] = [];
     sortedRanges.forEach((range) => {
       const rangeTasks = groupedTasks?.get(range.start) || [];
@@ -87,6 +86,16 @@ export const TaskList: React.FC<TaskListProps> = ({
     });
     return result;
   }, [groupedTasks, sortedRanges]);
+
+  // 当 props 数据变化时，重置本地数据标记并更新
+  React.useEffect(() => {
+    setData(tasks);
+    setLocalRenderData(renderDataFromProps);
+    setIsUsingLocalData(false);
+  }, [tasks, renderDataFromProps]);
+
+  // 使用本地数据或 props 数据
+  const renderDataWithHeaders = isUsingLocalData ? localRenderData : renderDataFromProps;
 
   type RenderItem = DraggableTask | { id: string; isHeader: true; rangeStart: number; rangeEnd: number };
 
@@ -134,39 +143,99 @@ export const TaskList: React.FC<TaskListProps> = ({
       return;
     }
 
-    const fromItem = newData[from];
-    const toItem = newData[to];
+    // 重要：newData 是拖拽后的数组，任务已经在 to 位置
+    // 所以被拖拽的任务在 newData[to]
+    const draggedItem = newData[to];
 
     // 如果拖拽的是头部，不允许
-    if ('isHeader' in fromItem && fromItem.isHeader) {
+    if ('isHeader' in draggedItem && draggedItem.isHeader) {
       return;
     }
 
-    // 此时 fromItem 一定是 DraggableTask（因为上面已经检查了 isHeader）
-    const draggableFromItem = fromItem as DraggableTask;
+    // 此时 draggedItem 一定是 DraggableTask
+    const draggableDraggedItem = draggedItem as DraggableTask;
+    const fromRangeStart = draggableDraggedItem.rangeStart; // 注意：这里的 rangeStart 还是原来的值，尚未更新
 
-    // 如果目标是头部，找到头部后面的第一个任务作为目标
-    let toRangeStart: number;
-    if ('isHeader' in toItem && toItem.isHeader) {
-      // 找到目标头部后面的第一个任务
-      const nextIndex = to + 1;
-      if (nextIndex < newData.length && !('isHeader' in newData[nextIndex])) {
-        toRangeStart = (newData[nextIndex] as DraggableTask).rangeStart;
+    // 根据 to 位置前后的项目来判断目标范围
+    // 规则：
+    // 1. 优先看 to 前面的项目（排除被拖拽的任务本身，即 to 位置）
+    // 2. 如果前面是头部或任务，使用该项目的范围
+    // 3. 如果 to 在最前面，看后面的项目
+
+    let toRangeStart: number = fromRangeStart; // 默认使用源范围
+
+    // 向前查找（排除 to 位置）
+    let prevIndex = to - 1;
+    while (prevIndex >= 0) {
+      const prevItem = newData[prevIndex];
+      if (!('isHeader' in prevItem)) {
+        // 前面是任务，使用该任务的范围
+        toRangeStart = prevItem.rangeStart;
+        break;
       } else {
-        // 如果头部后面没有任务，使用头部的范围
-        toRangeStart = toItem.rangeStart;
+        // 前面是头部，使用该头部的范围
+        toRangeStart = prevItem.rangeStart;
+        break;
       }
-    } else {
-      toRangeStart = toItem.rangeStart;
     }
 
-    const fromRangeStart = draggableFromItem.rangeStart;
+    // 如果前面没有找到（to 在最前面），向后查找（排除 to 位置）
+    if (toRangeStart === fromRangeStart) {
+      let nextIndex = to + 1;
+      while (nextIndex < newData.length) {
+        const nextItem = newData[nextIndex];
+        if (!('isHeader' in nextItem)) {
+          toRangeStart = nextItem.rangeStart;
+          break;
+        } else {
+          toRangeStart = nextItem.rangeStart;
+          break;
+        }
+      }
+    }
 
     if (fromRangeStart !== toRangeStart) {
       // 跨日期拖拽
       const targetRange = sortedRanges.find((r) => r.start === toRangeStart);
       if (targetRange) {
-        onMoveTaskToDate?.(draggableFromItem.taskId, targetRange.start, targetRange.end);
+        // 立即更新本地数据，防止列表回弹
+        // 从 newData 中移除被拖拽的任务（在 to 位置）
+        const newLocalData = newData.filter((_, idx) => idx !== to);
+
+        const updatedTask: DraggableTask = {
+          ...draggableDraggedItem,
+          rangeStart: targetRange.start,
+          rangeEnd: targetRange.end,
+          task: {
+            ...draggableDraggedItem.task,
+            startDate: targetRange.start,
+            endDate: targetRange.end,
+          },
+        };
+
+        // 找到目标头部的位置，在其后插入
+        const targetHeaderIndex = newLocalData.findIndex(
+          item => 'isHeader' in item && item.rangeStart === targetRange.start
+        );
+
+        if (targetHeaderIndex >= 0) {
+          // 找到目标范围内已有的任务，插在它们后面
+          let insertIndex = targetHeaderIndex + 1;
+          while (insertIndex < newLocalData.length &&
+                 !('isHeader' in newLocalData[insertIndex]) &&
+                 (newLocalData[insertIndex] as DraggableTask).rangeStart === targetRange.start) {
+            insertIndex++;
+          }
+          newLocalData.splice(insertIndex, 0, updatedTask);
+        } else {
+          newLocalData.push(updatedTask);
+        }
+
+        setLocalRenderData(newLocalData);
+        setIsUsingLocalData(true);
+
+        // 然后调用异步更新
+        onMoveTaskToDate?.(draggableDraggedItem.taskId, targetRange.start, targetRange.end);
       }
     } else {
       // 同日期内排序 - 保持头部位置不变，只排序任务
