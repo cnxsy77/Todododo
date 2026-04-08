@@ -38,4 +38,13 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   return context.resolveRequest(context, moduleName, platform);
 };
 
+// 在开发环境中禁用某些警告
+if (process.env.NODE_ENV === 'development') {
+  // 设置环境变量来禁用 React Native 的某些警告
+  process.env.REACT_NATIVE_DISABLE_WARNINGS = '1';
+
+  // 或者尝试禁用特定的警告类别
+  process.env.DISABLE_REACT_NATIVE_DEPRECATED_WARNINGS = '1';
+}
+
 module.exports = config;

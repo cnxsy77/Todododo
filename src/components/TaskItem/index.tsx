@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Platform } from 'react-native';
 import type { Task } from '../../types';
 
 interface TaskItemProps {
@@ -130,11 +130,16 @@ const styles = StyleSheet.create({
     padding: 16,
     marginHorizontal: 16,
     marginVertical: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    // Use boxShadow for web and elevation for native
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)'
+    } : {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 2,
+    }),
   },
   completed: {
     opacity: 0.6,

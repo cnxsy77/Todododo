@@ -1,3 +1,39 @@
+// 简单的方法：完全禁用所有警告（仅开发环境）
+if (__DEV__ && typeof window !== 'undefined') {
+  // 保存原始方法
+  const originalWarn = console.warn;
+  const originalError = console.error;
+
+  // 要忽略的警告模式
+  const ignoredPatterns = [
+    /props\.pointerEvents is deprecated/,
+    /"shadow\*" style props are deprecated/,
+    /style\.(resizeMode|tintColor) is deprecated/,
+    /`ref` is not a prop/,
+    /findDOMNode is deprecated/,
+    /Warning: \[object Object\]: `ref` is not a prop/,
+    /Image: style\.(resizeMode|tintColor) is deprecated/,
+  ];
+
+  console.warn = function(...args) {
+    const message = args[0]?.toString?.() || '';
+    const shouldIgnore = ignoredPatterns.some(pattern => pattern.test(message));
+
+    if (!shouldIgnore) {
+      originalWarn.apply(console, args);
+    }
+  };
+
+  console.error = function(...args) {
+    const message = args[0]?.toString?.() || '';
+    const shouldIgnore = ignoredPatterns.some(pattern => pattern.test(message));
+
+    if (!shouldIgnore) {
+      originalError.apply(console, args);
+    }
+  };
+}
+
 import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

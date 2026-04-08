@@ -28,7 +28,7 @@ export const runMigrations = (): Promise<void> => {
             tx.executeSql(
               'SELECT MAX(version) as version FROM migrations',
               [],
-              (_, { rows }) => {
+              (_tx: any, { rows }: { rows: { length: number; item: (index: number) => { version?: number } } }) => {
                 const currentVersion = rows.item(0)?.version || 0;
 
                 if (currentVersion < CURRENT_VERSION) {
@@ -59,7 +59,7 @@ export const runMigrations = (): Promise<void> => {
               }
             );
           },
-          (error) => {
+          (error: Error) => {
             console.error('Migration error:', error);
             reject(error);
           },
