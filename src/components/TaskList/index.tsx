@@ -1,7 +1,6 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { DraggableFlatList, ScaleDecorator, RenderItemParams } from '../common/DraggableListWrapperFixed';
-import type { DragEndParams } from 'react-native-draggable-flatlist';
+import DraggableFlatList, { ScaleDecorator, DragEndParams, RenderItemParams } from 'react-native-draggable-flatlist';
 import type { Task, ViewType } from '../../types';
 import { TaskItem } from '../TaskItem';
 
@@ -44,8 +43,6 @@ export const TaskList: React.FC<TaskListProps> = ({
   const [isUsingLocalData, setIsUsingLocalData] = useState(false);
   // 使用 ref 跟踪拖拽后待同步的状态（避免闭包问题）
   const pendingSyncRef = React.useRef(false);
-  // 为 DraggableFlatList 添加 ref
-  const flatListRef = useRef<any>(null);
 
   // 排序后的范围
   const sortedRanges = useMemo(() => {
@@ -131,13 +128,7 @@ export const TaskList: React.FC<TaskListProps> = ({
     return counts;
   }, [groupedTasks, sortedRanges]);
 
-  // 渲染任务项
-  const renderTaskItem = ({ item, drag, isActive, getIndex: _getIndex }: {
-    item: DraggableTask;
-    drag: () => void;
-    isActive: boolean;
-    getIndex?: () => number | undefined;
-  }) => {
+  const renderTaskItem = ({ item, drag, isActive }: RenderItemParams<RenderItem>) => {
     if ('isHeader' in item && item.isHeader) {
       return null;
     }
@@ -179,10 +170,10 @@ export const TaskList: React.FC<TaskListProps> = ({
 
     // 向前查找最近的头部
     for (let i = to - 1; i >= 0; i--) {
-      const item = newData[i] as RenderItem;
+      const item = newData[i];
       if ('isHeader' in item && item.isHeader) {
         // 找到头部，使用该头部的范围
-        toRangeStart = (item as { id: string; isHeader: true; rangeStart: number; rangeEnd: number }).rangeStart;
+        toRangeStart = item.rangeStart;
         break;
       }
     }
@@ -282,12 +273,7 @@ export const TaskList: React.FC<TaskListProps> = ({
   }, [sortedRanges, onMoveTaskToDate, onReorder]);
 
   // 渲染日期头（作为普通列表项）
-  const renderHeaderItem = ({ item, drag: _drag, isActive: _isActive, getIndex: _getIndex }: {
-    item: { id: string; isHeader: true; rangeStart: number; rangeEnd: number };
-    drag: () => void;
-    isActive: boolean;
-    getIndex?: () => number | undefined;
-  }) => {
+  const renderHeaderItem = ({ item }: RenderItemParams<RenderItem>) => {
     if ('isHeader' in item && item.isHeader) {
       const count = rangeTaskCounts.get(item.rangeStart) || 0;
       return (
@@ -315,9 +301,8 @@ export const TaskList: React.FC<TaskListProps> = ({
     return (
       <View style={styles.singleColumnContainer}>
         <DraggableFlatList
-          ref={flatListRef}
           data={data}
-          keyExtractor={(item) => (item as Task).id}
+          keyExtractor={(item) => item.id}
           renderItem={({ item, drag, isActive }) => (
             <ScaleDecorator activeScale={1.05}>
               <TaskItem
@@ -330,7 +315,7 @@ export const TaskList: React.FC<TaskListProps> = ({
             </ScaleDecorator>
           )}
           onDragEnd={({ data: newData }) => {
-            const taskIds = newData.map((t) => (t as Task).id);
+            const taskIds = newData.map((t) => t.id);
             onReorder?.(taskIds);
           }}
           contentContainerStyle={styles.listContent}
@@ -356,21 +341,17 @@ export const TaskList: React.FC<TaskListProps> = ({
   return (
     <View style={styles.container}>
       <DraggableFlatList
-        ref={flatListRef}
         data={renderDataWithHeaders}
-        keyExtractor={(item) => (item as RenderItem).id}
+        keyExtractor={(item) => item.id}
         renderItem={({ item, drag, isActive, getIndex }) => {
           // 如果是头部，渲染头部
-          const renderItem = item as RenderItem;
-          if ('isHeader' in renderItem && renderItem.isHeader && 'rangeStart' in renderItem && 'rangeEnd' in renderItem) {
-            const headerItem = renderItem as { id: string; isHeader: true; rangeStart: number; rangeEnd: number };
-            return renderHeaderItem({ item: headerItem, drag, isActive, getIndex });
+          if ('isHeader' in item && item.isHeader) {
+            return renderHeaderItem({ item, drag, isActive, getIndex: getIndex! });
           }
           // 否则渲染任务
-          const taskItem = renderItem as DraggableTask;
-          return renderTaskItem({ item: taskItem, drag, isActive, getIndex });
+          return renderTaskItem({ item, drag, isActive, getIndex });
         }}
-        onDragEnd={handleDragEndWithHeaders as (params: DragEndParams<unknown>) => void}
+        onDragEnd={handleDragEndWithHeaders}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         stickyHeaderIndices={stickyHeaderIndices}

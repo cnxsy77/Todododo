@@ -11,14 +11,14 @@ const executeQuery = <T>(
     tx.executeSql(
       sql,
       params,
-      (_tx: any, { rows }: { rows: { length: number; item: (index: number) => T } }) => {
+      (_, { rows }) => {
         const result: T[] = [];
         for (let i = 0; i < rows.length; i++) {
           result.push(rows.item(i) as T);
         }
         resolve(result);
       },
-      (_tx: any, error: Error) => {
+      (_, error) => {
         reject(error);
         return false;
       }
@@ -36,14 +36,14 @@ const executeSingleQuery = <T>(
     tx.executeSql(
       sql,
       params,
-      (_tx: any, { rows }: { rows: { length: number; item: (index: number) => T } }) => {
+      (_, { rows }) => {
         if (rows.length > 0) {
           resolve(rows.item(0) as T);
         } else {
           resolve(undefined);
         }
       },
-      (_tx: any, error: Error) => {
+      (_, error) => {
         reject(error);
         return false;
       }
@@ -173,7 +173,7 @@ export const createTask = async (input: CreateTaskInput): Promise<Task> => {
                   updatedAt: now,
                 });
               },
-              (_tx: any, error: Error) => {
+              (_, error) => {
                 reject(error);
                 return false;
               }
@@ -239,7 +239,7 @@ export const updateTask = async (
           `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`,
           values,
           () => resolve(),
-          (_tx: any, error: Error) => {
+          (_, error) => {
             reject(error);
             return false;
           }
@@ -260,7 +260,7 @@ export const deleteTask = async (id: string): Promise<void> => {
           'DELETE FROM tasks WHERE id = ?',
           [id],
           () => resolve(),
-          (_tx: any, error: Error) => {
+          (_, error) => {
             reject(error);
             return false;
           }
@@ -287,7 +287,7 @@ export const updateTaskOrders = async (
               'UPDATE tasks SET sort_order = ?, updated_at = ? WHERE id = ?',
               [i, Date.now(), taskId],
               () => innerResolve(),
-              (_tx: any, error: Error) => {
+              (_, error) => {
                 innerReject(error);
                 return false;
               }
@@ -318,7 +318,7 @@ export const moveTaskToDate = async (
           'UPDATE tasks SET start_date = ?, end_date = ?, updated_at = ? WHERE id = ?',
           [newStartDate, newEndDate || null, Date.now(), id],
           () => resolve(),
-          (_tx: any, error: Error) => {
+          (_, error) => {
             reject(error);
             return false;
           }

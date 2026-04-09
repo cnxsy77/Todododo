@@ -4,14 +4,13 @@ export const DB_NAME = 'todododo.db';
 
 // 模拟数据库对象用于 Web 端
 const mockDatabase = {
-  transaction: (callback: (tx: any) => void, error?: (err: Error) => void, success?: () => void) => {
+  transaction: (callback: (tx: any) => void, error?: () => void, success?: () => void) => {
     console.log('[Web] Mock transaction');
     const tx = {
-      executeSql: (sql: string, params?: any[], sqlSuccess?: (tx: any, result: any) => void, sqlError?: (tx: any, err: Error) => boolean) => {
+      executeSql: (sql: string, params?: any[], sqlSuccess?: () => void, sqlError?: () => void) => {
         console.log('[Web] Mock executeSql:', sql);
         const result = { rows: { length: 0, item: () => undefined } };
         if (sqlSuccess) sqlSuccess(null, result);
-        return true;
       }
     };
     try {
@@ -19,7 +18,7 @@ const mockDatabase = {
       if (success) success();
     } catch (e) {
       console.error('[Web] Mock transaction error:', e);
-      if (error && e instanceof Error) error(e);
+      if (error) error();
     }
   },
   close: () => {
