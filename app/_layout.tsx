@@ -29,37 +29,43 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.container}>
       <Stack
         screenOptions={{
-          headerStyle: {
-            backgroundColor: '#FFFFFF',
-          },
-          headerTintColor: '#000000',
-          headerTitleStyle: {
-            fontWeight: '600',
-          },
-          headerShadowVisible: false,
-          headerBackTitle: '返回',
-          contentStyle: {
-            backgroundColor: '#F2F2F7',
-          },
+          headerShown: false,
         }}
       >
-        <Stack.Screen
-          name="index"
-          options={{
-            title: 'Todododo',
-            headerLargeTitle: true,
-          }}
-        />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="task-detail"
           options={{
             title: '任务详情',
+            headerShown: true,
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTintColor: '#000000',
+            headerTitleStyle: { fontWeight: '600' },
+            headerShadowVisible: false,
+            presentation: 'modal',
           }}
         />
         <Stack.Screen
-          name="settings"
+          name="transaction-detail"
           options={{
-            title: '设置',
+            title: '添加记录',
+            headerShown: true,
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTintColor: '#000000',
+            headerTitleStyle: { fontWeight: '600' },
+            headerShadowVisible: false,
+            presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
+          name="statistics"
+          options={{
+            title: '统计',
+            headerShown: true,
+            headerStyle: { backgroundColor: '#FFFFFF' },
+            headerTintColor: '#000000',
+            headerTitleStyle: { fontWeight: '600' },
+            headerShadowVisible: false,
           }}
         />
       </Stack>
