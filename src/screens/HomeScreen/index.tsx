@@ -53,8 +53,12 @@ export const HomeScreen: React.FC = () => {
       if (!selectedRanges.includes(timestamp)) {
         toggleRangeSelection(timestamp);
       }
-    } else if (selectedRanges.length > 0) {
-      // 当切换视图时，清空之前的选择，选择当前视图的时间单元
+    }
+  }, [currentView, currentDate]);
+
+  // 只在切换视图时重置选中范围
+  useEffect(() => {
+    if (selectedRanges.length > 0 && currentDate) {
       const date = new Date(currentDate);
       const getUnitTimestamp = () => {
         switch (currentView) {
@@ -75,7 +79,7 @@ export const HomeScreen: React.FC = () => {
       clearRangeSelection();
       toggleRangeSelection(timestamp);
     }
-  }, [currentView, currentDate]);
+  }, [currentView]);
 
   const handleUnitPress = (unit: TimeAxisUnit) => {
     const timestamp = unit.startDate.getTime();

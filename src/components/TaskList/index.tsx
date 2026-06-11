@@ -208,14 +208,14 @@ export const TaskList: React.FC<TaskListProps> = ({
           for (let i = newLocalData.length - 1; i > targetHeaderIndex; i--) {
             const item = newLocalData[i];
             if (!('isHeader' in item) &&
-                (item as DraggableTask).rangeStart === targetRange.start) {
+              (item as DraggableTask).rangeStart === targetRange.start) {
               lastTargetTaskLocalIndex = i;
               break;
             }
           }
 
           // 新逻辑：精确定位插入位置
-          let insertIndex: number;
+          let insertIndex = targetHeaderIndex + 1; // 默认插入到头部后面
 
           if (lastTargetTaskLocalIndex === -1) {
             // 目标范围没有任务，插入到头部后面
@@ -228,7 +228,7 @@ export const TaskList: React.FC<TaskListProps> = ({
             for (let i = to + 1; i < newData.length; i++) {
               const item = newData[i];
               if (!('isHeader' in item) &&
-                  (item as DraggableTask).rangeStart === targetRange.start) {
+                (item as DraggableTask).rangeStart === targetRange.start) {
                 nearestTaskIndexInNewData = i;
                 break;
               }
@@ -239,7 +239,7 @@ export const TaskList: React.FC<TaskListProps> = ({
               for (let i = to - 1; i >= 0; i--) {
                 const item = newData[i];
                 if (!('isHeader' in item) &&
-                    (item as DraggableTask).rangeStart === targetRange.start) {
+                  (item as DraggableTask).rangeStart === targetRange.start) {
                   nearestTaskIndexInNewData = i;
                   break;
                 }
@@ -270,10 +270,7 @@ export const TaskList: React.FC<TaskListProps> = ({
               }
             }
 
-            // 如果没找到对应任务，默认插入到头部后面
-            if (insertIndex === undefined) {
-              insertIndex = targetHeaderIndex + 1;
-            }
+            // insertIndex 已在声明时设置默认值，无需额外处理
           }
 
           insertIndex = Math.min(insertIndex, newLocalData.length);
