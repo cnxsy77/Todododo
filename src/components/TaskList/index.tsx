@@ -214,36 +214,65 @@ export const TaskList: React.FC<TaskListProps> = ({
             }
           }
 
-          // 在 newData 中找到最后一个目标范围任务的索引
-          let lastTargetTaskNewDataIndex = -1;
-          for (let i = newData.length - 1; i >= 0; i--) {
-            const item = newData[i];
-            if (!('isHeader' in item) &&
-                (item as DraggableTask).rangeStart === targetRange.start &&
-                i !== to) {
-              lastTargetTaskNewDataIndex = i;
-              break;
-            }
-          }
-
+          // 新逻辑：精确定位插入位置
           let insertIndex: number;
 
           if (lastTargetTaskLocalIndex === -1) {
+            // 目标范围没有任务，插入到头部后面
             insertIndex = targetHeaderIndex + 1;
           } else {
-            if (to > lastTargetTaskNewDataIndex) {
-              insertIndex = lastTargetTaskLocalIndex + 1;
-            } else {
-              let firstTargetTaskLocalIndex = -1;
-              for (let i = targetHeaderIndex + 1; i < newLocalData.length; i++) {
-                const item = newLocalData[i];
+            // 在 newData 中找到 to 位置之后（或之前）的最近一个目标范围任务
+            let nearestTaskIndexInNewData: number | null = null;
+
+            // 先向后查找
+            for (let i = to + 1; i < newData.length; i++) {
+              const item = newData[i];
+              if (!('isHeader' in item) &&
+                  (item as DraggableTask).rangeStart === targetRange.start) {
+                nearestTaskIndexInNewData = i;
+                break;
+              }
+            }
+
+            // 如果后面没找到，向前查找
+            if (nearestTaskIndexInNewData === null) {
+              for (let i = to - 1; i >= 0; i--) {
+                const item = newData[i];
                 if (!('isHeader' in item) &&
                     (item as DraggableTask).rangeStart === targetRange.start) {
-                  firstTargetTaskLocalIndex = i;
+                  nearestTaskIndexInNewData = i;
                   break;
                 }
               }
-              insertIndex = firstTargetTaskLocalIndex !== -1 ? firstTargetTaskLocalIndex : targetHeaderIndex + 1;
+            }
+
+            // 在 newLocalData 中找到对应的任务
+            if (nearestTaskIndexInNewData !== null) {
+              const nearestTaskInNewData = newData[nearestTaskIndexInNewData] as DraggableTask;
+              const nearestTaskId = nearestTaskInNewData.taskId;
+
+              // 在 newLocalData 中找到相同 taskId 的任务
+              for (let i = targetHeaderIndex + 1; i < newLocalData.length; i++) {
+                const item = newLocalData[i];
+                if (!('isHeader' in item)) {
+                  const task = item as DraggableTask;
+                  if (task.taskId === nearestTaskId) {
+                    // 如果是从 newData 中向后找到的，插入到它前面
+                    if (nearestTaskIndexInNewData > to) {
+                      insertIndex = i;
+                    } else {
+                      // 如果是从 newData 中向前找到的，插入到它后面
+                      insertIndex = i + 1;
+                    }
+                    break;
+                  }
+                }
+              }
+            }
+
+            // 如果没找到对应任务，默认插入到头部后面
+            if (insertIndex === undefined) {
+              insertIndex = targetHeaderIndex + 1;
             }
           }
 
