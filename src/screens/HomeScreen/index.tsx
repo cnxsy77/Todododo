@@ -1,14 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { TimeAxis } from '../../components/TimeAxis';
 import { TaskList } from '../../components/TaskList';
 import { useView, useTasksByRanges } from '../../hooks';
 import { useTaskStore } from '../../stores/taskStore';
+import { useTheme, ThemeColors } from '../../theme';
 import type { TimeAxisUnit } from '../../types';
 
 export const HomeScreen: React.FC = () => {
   const router = useRouter();
+  const colors = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const {
     currentView,
     currentDate,
@@ -142,7 +145,7 @@ export const HomeScreen: React.FC = () => {
       {selectedRanges.length > 1 && (
         <View style={styles.multiSelectBar}>
           <Text style={styles.multiSelectText}>
-            已选择 {selectedRanges.length} {currentView === 'day' ? '天' : currentView === 'week' ? '周' : currentView === 'month' ? '月' : '年'} {selectedRanges.length >= 3 && '(最多 3 个)'})
+            已选择 {selectedRanges.length} {currentView === 'day' ? '天' : currentView === 'week' ? '周' : currentView === 'month' ? '月' : '年'} {selectedRanges.length >= 3 && '(最多 3 个)'}
           </Text>
           <TouchableOpacity onPress={() => clearRangeSelection()}>
             <Text style={styles.clearButton}>清空</Text>
@@ -182,59 +185,60 @@ export const HomeScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  multiSelectBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  multiSelectText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  clearButton: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  maxSelectWarning: {
-    backgroundColor: '#FF9500',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    alignItems: 'center',
-  },
-  maxSelectWarningText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#007AFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  fabText: {
-    fontSize: 32,
-    color: '#FFFFFF',
-    fontWeight: '300',
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    multiSelectBar: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      backgroundColor: c.primary,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    multiSelectText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    clearButton: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    maxSelectWarning: {
+      backgroundColor: c.warning,
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      alignItems: 'center',
+    },
+    maxSelectWarningText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '500',
+    },
+    fab: {
+      position: 'absolute',
+      right: 20,
+      bottom: 20,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: c.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 8,
+    },
+    fabText: {
+      fontSize: 32,
+      color: '#FFFFFF',
+      fontWeight: '300',
+    },
+  });

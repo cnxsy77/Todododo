@@ -1,14 +1,17 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useCategoryStore } from '../../stores/categoryStore';
 import { useRouter } from 'expo-router';
+import { useTheme, ThemeColors } from '../../theme';
 import type { Transaction } from '../../types';
 
 export const CurrencyScreen: React.FC = () => {
   const router = useRouter();
   const { transactions, loadTransactions, getStatistics } = useTransactionStore();
   const { categories, loadCategories } = useCategoryStore();
+  const colors = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const stats = getStatistics();
 
@@ -58,14 +61,34 @@ export const CurrencyScreen: React.FC = () => {
         <Text style={styles.balanceAmount}>¥{stats.balance.toFixed(2)}</Text>
         <View style={styles.balanceRow}>
           <View style={styles.balanceItem}>
-            <Text style={styles.incomeLabel}>收入</Text>
-            <Text style={styles.incomeAmount}>+¥{stats.totalIncome.toFixed(2)}</Text>
+            <Text style={styles.balanceSubLabel}>收入</Text>
+            <Text style={styles.balanceSubAmount}>+¥{stats.totalIncome.toFixed(2)}</Text>
           </View>
           <View style={styles.balanceItem}>
-            <Text style={styles.expenseLabel}>支出</Text>
-            <Text style={styles.expenseAmount}>-¥{stats.totalExpense.toFixed(2)}</Text>
+            <Text style={styles.balanceSubLabel}>支出</Text>
+            <Text style={styles.balanceSubAmount}>-¥{stats.totalExpense.toFixed(2)}</Text>
           </View>
         </View>
+      </View>
+
+      {/* 快捷入口 */}
+      <View style={styles.entryRow}>
+        <TouchableOpacity
+          style={styles.entryButton}
+          onPress={() => router.push('/statistics')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.entryIcon}>📊</Text>
+          <Text style={styles.entryText}>统计</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.entryButton}
+          onPress={() => router.push('/budget')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.entryIcon}>🎯</Text>
+          <Text style={styles.entryText}>预算</Text>
+        </TouchableOpacity>
       </View>
 
       {/* 交易列表 */}
@@ -87,9 +110,12 @@ export const CurrencyScreen: React.FC = () => {
                     <TouchableOpacity
                       key={transaction.id}
                       style={styles.transactionItem}
-                      onPress={() => {
-                        // TODO: 跳转到交易详情
-                      }}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/transaction-detail',
+                          params: { transactionId: transaction.id },
+                        })
+                      }
                       activeOpacity={0.7}
                     >
                       <View style={styles.transactionLeft}>
@@ -136,145 +162,159 @@ export const CurrencyScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  balanceCard: {
-    backgroundColor: '#007AFF',
-    margin: 16,
-    padding: 24,
-    borderRadius: 16,
-  },
-  balanceLabel: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 8,
-  },
-  balanceAmount: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 24,
-  },
-  balanceRow: {
-    flexDirection: 'row',
-    gap: 32,
-  },
-  balanceItem: {
-    flex: 1,
-  },
-  incomeLabel: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 4,
-  },
-  incomeAmount: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  expenseLabel: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 4,
-  },
-  expenseAmount: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  section: {
-    paddingHorizontal: 16,
-    paddingBottom: 80,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-    paddingHorizontal: 4,
-  },
-  emptyContainer: {
-    paddingVertical: 60,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#999999',
-  },
-  daySection: {
-    marginBottom: 24,
-  },
-  dayLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#666666',
-    marginBottom: 8,
-    paddingHorizontal: 4,
-  },
-  transactionsList: {
-    gap: 8,
-  },
-  transactionItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-  },
-  transactionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  categoryIcon: {
-    fontSize: 24,
-  },
-  transactionInfo: {
-    flex: 1,
-  },
-  categoryName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000000',
-    marginBottom: 2,
-  },
-  transactionNote: {
-    fontSize: 14,
-    color: '#999999',
-  },
-  transactionAmount: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  income: {
-    color: '#4CAF50',
-  },
-  expense: {
-    color: '#F44336',
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#007AFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-  },
-  fabText: {
-    fontSize: 32,
-    color: '#FFFFFF',
-    fontWeight: '300',
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    balanceCard: {
+      backgroundColor: c.primary,
+      margin: 16,
+      padding: 24,
+      borderRadius: 16,
+    },
+    balanceLabel: {
+      fontSize: 14,
+      color: 'rgba(255, 255, 255, 0.8)',
+      marginBottom: 8,
+    },
+    balanceAmount: {
+      fontSize: 36,
+      fontWeight: '700',
+      color: '#FFFFFF',
+      marginBottom: 24,
+    },
+    balanceRow: {
+      flexDirection: 'row',
+      gap: 32,
+    },
+    balanceItem: {
+      flex: 1,
+    },
+    balanceSubLabel: {
+      fontSize: 12,
+      color: 'rgba(255, 255, 255, 0.8)',
+      marginBottom: 4,
+    },
+    balanceSubAmount: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: '#FFFFFF',
+    },
+    entryRow: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+      gap: 12,
+      marginBottom: 8,
+    },
+    entryButton: {
+      flex: 1,
+      backgroundColor: c.surface,
+      borderRadius: 12,
+      paddingVertical: 16,
+      alignItems: 'center',
+    },
+    entryIcon: {
+      fontSize: 24,
+      marginBottom: 4,
+    },
+    entryText: {
+      fontSize: 14,
+      color: c.text,
+      fontWeight: '500',
+    },
+    section: {
+      paddingHorizontal: 16,
+      paddingBottom: 80,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: c.text,
+      marginBottom: 16,
+      paddingHorizontal: 4,
+    },
+    emptyContainer: {
+      paddingVertical: 60,
+      alignItems: 'center',
+    },
+    emptyText: {
+      fontSize: 16,
+      color: c.textTertiary,
+    },
+    daySection: {
+      marginBottom: 24,
+    },
+    dayLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: c.textSecondary,
+      marginBottom: 8,
+      paddingHorizontal: 4,
+    },
+    transactionsList: {
+      gap: 8,
+    },
+    transactionItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      padding: 16,
+      borderRadius: 12,
+    },
+    transactionLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      flex: 1,
+    },
+    categoryIcon: {
+      fontSize: 24,
+    },
+    transactionInfo: {
+      flex: 1,
+    },
+    categoryName: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: c.text,
+      marginBottom: 2,
+    },
+    transactionNote: {
+      fontSize: 14,
+      color: c.textTertiary,
+    },
+    transactionAmount: {
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    income: {
+      color: c.income,
+    },
+    expense: {
+      color: c.expense,
+    },
+    fab: {
+      position: 'absolute',
+      right: 20,
+      bottom: 20,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: c.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 8,
+    },
+    fabText: {
+      fontSize: 32,
+      color: '#FFFFFF',
+      fontWeight: '300',
+    },
+  });

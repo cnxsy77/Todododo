@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useCategoryStore } from '../../stores/categoryStore';
+import { useTheme, ThemeColors } from '../../theme';
 import { format } from 'date-fns';
 
 type PeriodType = 'week' | 'month' | 'year';
@@ -9,6 +10,8 @@ type PeriodType = 'week' | 'month' | 'year';
 export const StatisticsScreen: React.FC = () => {
   const { transactions, getStatistics } = useTransactionStore();
   const { categories } = useCategoryStore();
+  const colors = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [period, setPeriod] = useState<PeriodType>('month');
 
   const stats = useMemo(() => {
@@ -220,171 +223,173 @@ export const StatisticsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  periodToggle: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    margin: 16,
-    borderRadius: 12,
-    padding: 4,
-  },
-  periodButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  periodButtonActive: {
-    backgroundColor: '#007AFF',
-  },
-  periodButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#666666',
-  },
-  periodButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  overviewCard: {
-    backgroundColor: '#FFFFFF',
-    margin: 16,
-    marginTop: 0,
-    padding: 20,
-    borderRadius: 16,
-  },
-  overviewLabel: {
-    fontSize: 14,
-    color: '#666666',
-    marginBottom: 8,
-  },
-  balanceAmount: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#000000',
-    marginBottom: 20,
-  },
-  overviewRow: {
-    flexDirection: 'row',
-    gap: 24,
-  },
-  overviewItem: {
-    flex: 1,
-  },
-  incomeLabel: {
-    fontSize: 12,
-    color: '#666666',
-    marginBottom: 4,
-  },
-  incomeAmount: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#4CAF50',
-  },
-  expenseLabel: {
-    fontSize: 12,
-    color: '#666666',
-    marginBottom: 4,
-  },
-  expenseAmount: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#F44336',
-  },
-  section: {
-    margin: 16,
-    marginTop: 0,
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 16,
-  },
-  categoryList: {
-    gap: 16,
-  },
-  categoryItem: {
-    gap: 8,
-  },
-  categoryItemTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  categoryInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  categoryDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  categoryName: {
-    fontSize: 14,
-    color: '#000000',
-  },
-  categoryAmounts: {
-    alignItems: 'flex-end',
-    gap: 2,
-  },
-  categoryPercentage: {
-    fontSize: 12,
-    color: '#999999',
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#F2F2F7',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  dailyChart: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    paddingTop: 16,
-  },
-  dayItem: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  dayBars: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 4,
-    height: 80,
-  },
-  barContainer: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  bar: {
-    width: 12,
-    borderRadius: 6,
-  },
-  barValue: {
-    fontSize: 10,
-    color: '#999999',
-  },
-  incomeBar: {
-    backgroundColor: '#4CAF50',
-  },
-  expenseBar: {
-    backgroundColor: '#F44336',
-  },
-  dayLabel: {
-    fontSize: 12,
-    color: '#999999',
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    periodToggle: {
+      flexDirection: 'row',
+      backgroundColor: c.surface,
+      margin: 16,
+      borderRadius: 12,
+      padding: 4,
+    },
+    periodButton: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 10,
+      alignItems: 'center',
+    },
+    periodButtonActive: {
+      backgroundColor: c.primary,
+    },
+    periodButtonText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: c.textSecondary,
+    },
+    periodButtonTextActive: {
+      color: '#FFFFFF',
+    },
+    overviewCard: {
+      backgroundColor: c.surface,
+      margin: 16,
+      marginTop: 0,
+      padding: 20,
+      borderRadius: 16,
+    },
+    overviewLabel: {
+      fontSize: 14,
+      color: c.textSecondary,
+      marginBottom: 8,
+    },
+    balanceAmount: {
+      fontSize: 32,
+      fontWeight: '700',
+      color: c.text,
+      marginBottom: 20,
+    },
+    overviewRow: {
+      flexDirection: 'row',
+      gap: 24,
+    },
+    overviewItem: {
+      flex: 1,
+    },
+    incomeLabel: {
+      fontSize: 12,
+      color: c.textSecondary,
+      marginBottom: 4,
+    },
+    incomeAmount: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: c.income,
+    },
+    expenseLabel: {
+      fontSize: 12,
+      color: c.textSecondary,
+      marginBottom: 4,
+    },
+    expenseAmount: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: c.expense,
+    },
+    section: {
+      margin: 16,
+      marginTop: 0,
+      backgroundColor: c.surface,
+      padding: 16,
+      borderRadius: 16,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: c.text,
+      marginBottom: 16,
+    },
+    categoryList: {
+      gap: 16,
+    },
+    categoryItem: {
+      gap: 8,
+    },
+    categoryItemTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    categoryInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    categoryDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    categoryName: {
+      fontSize: 14,
+      color: c.text,
+    },
+    categoryAmounts: {
+      alignItems: 'flex-end',
+      gap: 2,
+    },
+    categoryPercentage: {
+      fontSize: 12,
+      color: c.textTertiary,
+    },
+    progressBar: {
+      height: 4,
+      backgroundColor: c.surfaceSecondary,
+      borderRadius: 2,
+      overflow: 'hidden',
+    },
+    progressFill: {
+      height: '100%',
+      borderRadius: 2,
+    },
+    dailyChart: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-end',
+      paddingTop: 16,
+    },
+    dayItem: {
+      alignItems: 'center',
+      gap: 8,
+    },
+    dayBars: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 4,
+      height: 80,
+    },
+    barContainer: {
+      alignItems: 'center',
+      gap: 2,
+    },
+    bar: {
+      width: 12,
+      borderRadius: 6,
+    },
+    barValue: {
+      fontSize: 10,
+      color: c.textTertiary,
+    },
+    incomeBar: {
+      backgroundColor: c.income,
+    },
+    expenseBar: {
+      backgroundColor: c.expense,
+    },
+    dayLabel: {
+      fontSize: 12,
+      color: c.textTertiary,
+    },
+  });

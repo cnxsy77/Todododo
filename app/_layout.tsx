@@ -4,9 +4,18 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { runMigrations } from '../src/database/migrations';
 import { StyleSheet, Platform } from 'react-native';
+import { useThemeStore } from '../src/stores/themeStore';
+import { useTheme } from '../src/theme';
 
 export default function RootLayout() {
+  const isDarkMode = useThemeStore((s) => s.isDarkMode);
+  const loadTheme = useThemeStore((s) => s.loadTheme);
+  const colors = useTheme();
+
   useEffect(() => {
+    // 启动时加载已保存的主题
+    loadTheme();
+
     const init = async () => {
       // Web 端不支持 expo-sqlite
       if (Platform.OS === 'web') {
@@ -25,6 +34,10 @@ export default function RootLayout() {
     init();
   }, []);
 
+  const headerStyle = { backgroundColor: colors.surface };
+  const headerTintColor = colors.text;
+  const headerTitleStyle = { fontWeight: '600' as const, color: colors.text };
+
   return (
     <GestureHandlerRootView style={styles.container}>
       <Stack
@@ -38,9 +51,9 @@ export default function RootLayout() {
           options={{
             title: '任务详情',
             headerShown: true,
-            headerStyle: { backgroundColor: '#FFFFFF' },
-            headerTintColor: '#000000',
-            headerTitleStyle: { fontWeight: '600' },
+            headerStyle,
+            headerTintColor,
+            headerTitleStyle,
             headerShadowVisible: false,
             presentation: 'modal',
           }}
@@ -50,9 +63,9 @@ export default function RootLayout() {
           options={{
             title: '添加记录',
             headerShown: true,
-            headerStyle: { backgroundColor: '#FFFFFF' },
-            headerTintColor: '#000000',
-            headerTitleStyle: { fontWeight: '600' },
+            headerStyle,
+            headerTintColor,
+            headerTitleStyle,
             headerShadowVisible: false,
             presentation: 'modal',
           }}
@@ -62,14 +75,25 @@ export default function RootLayout() {
           options={{
             title: '统计',
             headerShown: true,
-            headerStyle: { backgroundColor: '#FFFFFF' },
-            headerTintColor: '#000000',
-            headerTitleStyle: { fontWeight: '600' },
+            headerStyle,
+            headerTintColor,
+            headerTitleStyle,
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="budget"
+          options={{
+            title: '预算管理',
+            headerShown: true,
+            headerStyle,
+            headerTintColor,
+            headerTitleStyle,
             headerShadowVisible: false,
           }}
         />
       </Stack>
-      <StatusBar style="auto" />
+      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
     </GestureHandlerRootView>
   );
 }

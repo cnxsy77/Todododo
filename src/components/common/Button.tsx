@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { useTheme, ThemeColors } from '../../theme';
 
 interface ButtonProps {
   title: string;
@@ -18,6 +19,9 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
 }) => {
+  const colors = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const getButtonStyle = (): ViewStyle => {
     const baseStyle = styles.button;
     switch (variant) {
@@ -60,42 +64,43 @@ export const Button: React.FC<ButtonProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  button: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButton: {
-    backgroundColor: '#007AFF',
-  },
-  secondaryButton: {
-    backgroundColor: '#E5E5EA',
-  },
-  outlineButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#007AFF',
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-  },
-  secondaryButtonText: {
-    color: '#000000',
-  },
-  outlineButtonText: {
-    color: '#007AFF',
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  disabledButtonText: {
-    color: '#999999',
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    button: {
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    primaryButton: {
+      backgroundColor: c.primary,
+    },
+    secondaryButton: {
+      backgroundColor: c.surfaceSecondary,
+    },
+    outlineButton: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: c.primary,
+    },
+    buttonText: {
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    primaryButtonText: {
+      color: '#FFFFFF',
+    },
+    secondaryButtonText: {
+      color: c.text,
+    },
+    outlineButtonText: {
+      color: c.primary,
+    },
+    disabledButton: {
+      opacity: 0.5,
+    },
+    disabledButtonText: {
+      color: c.textTertiary,
+    },
+  });

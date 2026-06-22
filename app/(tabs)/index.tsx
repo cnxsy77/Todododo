@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { HomeScreen } from '../../src/screens/HomeScreen';
+import { useTheme } from '../../src/theme';
 
 export default function Index() {
+  const colors = useTheme();
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <HomeScreen />
     </View>
   );
@@ -13,6 +15,5 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
   },
 });

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import type { Task } from '../../types';
+import { useTheme, ThemeColors } from '../../theme';
 
 interface TaskItemProps {
   task: Task;
@@ -19,6 +20,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   isDragging = false,
   drag,
 }) => {
+  const colors = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
 
@@ -30,7 +33,6 @@ export const TaskItem: React.FC<TaskItemProps> = ({
 
   const handleSave = () => {
     setIsEditing(false);
-    // 保存逻辑可以在父组件处理
   };
 
   const getPlanTypeLabel = () => {
@@ -121,98 +123,99 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  completed: {
-    opacity: 0.6,
-  },
-  dragging: {
-    opacity: 0.5,
-    backgroundColor: '#F2F2F7',
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#007AFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  checkboxChecked: {
-    backgroundColor: '#007AFF',
-  },
-  checkmark: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  content: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000000',
-    marginBottom: 4,
-  },
-  titleCompleted: {
-    textDecorationLine: 'line-through',
-    color: '#999999',
-  },
-  description: {
-    fontSize: 14,
-    color: '#666666',
-    marginBottom: 8,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  planTypeBadge: {
-    backgroundColor: '#F2F2F7',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  planTypeText: {
-    fontSize: 12,
-    color: '#666666',
-    fontWeight: '500',
-  },
-  date: {
-    fontSize: 12,
-    color: '#999999',
-  },
-  input: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000000',
-    borderBottomWidth: 1,
-    borderBottomColor: '#007AFF',
-    paddingBottom: 4,
-  },
-  dragHandle: {
-    marginLeft: 8,
-    padding: 4,
-  },
-  dragHandleText: {
-    fontSize: 16,
-    color: '#999999',
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      borderRadius: 12,
+      padding: 16,
+      marginHorizontal: 16,
+      marginVertical: 6,
+      shadowColor: c.shadow,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    completed: {
+      opacity: 0.6,
+    },
+    dragging: {
+      opacity: 0.5,
+      backgroundColor: c.surfaceSecondary,
+    },
+    checkbox: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: c.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    checkboxChecked: {
+      backgroundColor: c.primary,
+    },
+    checkmark: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: 'bold',
+    },
+    content: {
+      flex: 1,
+    },
+    title: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: c.text,
+      marginBottom: 4,
+    },
+    titleCompleted: {
+      textDecorationLine: 'line-through',
+      color: c.textTertiary,
+    },
+    description: {
+      fontSize: 14,
+      color: c.textSecondary,
+      marginBottom: 8,
+    },
+    footer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    planTypeBadge: {
+      backgroundColor: c.surfaceSecondary,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    planTypeText: {
+      fontSize: 12,
+      color: c.textSecondary,
+      fontWeight: '500',
+    },
+    date: {
+      fontSize: 12,
+      color: c.textTertiary,
+    },
+    input: {
+      fontSize: 16,
+      fontWeight: '500',
+      color: c.text,
+      borderBottomWidth: 1,
+      borderBottomColor: c.primary,
+      paddingBottom: 4,
+    },
+    dragHandle: {
+      marginLeft: 8,
+      padding: 4,
+    },
+    dragHandleText: {
+      fontSize: 16,
+      color: c.textTertiary,
+    },
+  });

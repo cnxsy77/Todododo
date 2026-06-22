@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList } from 'react-native';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
+import { useTheme, ThemeColors } from '../../theme';
 
 interface DatePickerProps {
   value: number;
@@ -10,9 +11,10 @@ interface DatePickerProps {
 }
 
 export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, label = '选择日期' }) => {
+  const colors = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [visible, setVisible] = useState(false);
   const listRef = useRef<FlatList>(null);
-  const shouldScrollRef = useRef(false);
 
   const currentDate = new Date(value);
 
@@ -151,91 +153,92 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, label =
   );
 };
 
-const styles = StyleSheet.create({
-  dateButton: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  dateButtonText: {
-    fontSize: 16,
-    color: '#333333',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    maxHeight: 400,
-    paddingBottom: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5EA',
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
-  },
-  closeButton: {
-    fontSize: 24,
-    color: '#999999',
-    width: 32,
-    height: 32,
-    textAlign: 'center',
-    lineHeight: 32,
-  },
-  dayItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F2F2F7',
-  },
-  dayItemSelected: {
-    backgroundColor: '#E5F1FF',
-  },
-  dayInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dayText: {
-    fontSize: 16,
-    color: '#333333',
-  },
-  dayTextSelected: {
-    fontWeight: '600',
-    color: '#007AFF',
-  },
-  todayBadge: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    backgroundColor: '#34C759',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  weekdayText: {
-    fontSize: 14,
-    color: '#999999',
-  },
-  weekdayTextSelected: {
-    color: '#007AFF',
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    dateButton: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    dateButtonText: {
+      fontSize: 16,
+      color: c.text,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: c.overlay,
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: c.surface,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      maxHeight: 400,
+      paddingBottom: 20,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    modalTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: c.text,
+    },
+    closeButton: {
+      fontSize: 24,
+      color: c.textTertiary,
+      width: 32,
+      height: 32,
+      textAlign: 'center',
+      lineHeight: 32,
+    },
+    dayItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    dayItemSelected: {
+      backgroundColor: c.primaryLight,
+    },
+    dayInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    dayText: {
+      fontSize: 16,
+      color: c.text,
+    },
+    dayTextSelected: {
+      fontWeight: '600',
+      color: c.primary,
+    },
+    todayBadge: {
+      fontSize: 12,
+      color: '#FFFFFF',
+      backgroundColor: c.success,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+      overflow: 'hidden',
+    },
+    weekdayText: {
+      fontSize: 14,
+      color: c.textTertiary,
+    },
+    weekdayTextSelected: {
+      color: c.primary,
+    },
+  });

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import DraggableFlatList, { ScaleDecorator, DragEndParams, RenderItemParams } from 'react-native-draggable-flatlist';
 import type { Task, ViewType } from '../../types';
 import { TaskItem } from '../TaskItem';
+import { useTheme, ThemeColors } from '../../theme';
 
 interface TaskListProps {
   tasks: Task[];
@@ -36,6 +37,8 @@ export const TaskList: React.FC<TaskListProps> = ({
   onMoveTaskToDate,
   emptyMessage = '暂无任务',
 }) => {
+  const colors = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [data, setData] = useState(tasks);
   // 用于多日期场景的本地数据状态（用于拖拽时立即更新 UI）
   const [localRenderData, setLocalRenderData] = useState<(DraggableTask | { id: string; isHeader: true; rangeStart: number; rangeEnd: number })[]>([]);
@@ -386,54 +389,55 @@ export const TaskList: React.FC<TaskListProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  singleColumnContainer: {
-    flex: 1,
-  },
-  listContent: {
-    paddingVertical: 8,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#999999',
-  },
-  dateHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#F0F0F0',
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  dateHeaderText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#333333',
-  },
-  taskCountBadge: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    minWidth: 24,
-    alignItems: 'center',
-  },
-  taskCountText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    singleColumnContainer: {
+      flex: 1,
+    },
+    listContent: {
+      paddingVertical: 8,
+    },
+    emptyContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 60,
+    },
+    emptyText: {
+      fontSize: 16,
+      color: c.textTertiary,
+    },
+    dateHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      backgroundColor: c.surfaceSecondary,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    dateHeaderText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: c.text,
+    },
+    taskCountBadge: {
+      backgroundColor: c.primary,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 10,
+      minWidth: 24,
+      alignItems: 'center',
+    },
+    taskCountText: {
+      fontSize: 12,
+      color: '#FFFFFF',
+      fontWeight: '600',
+    },
+  });

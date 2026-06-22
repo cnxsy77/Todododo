@@ -1,15 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Input, Button } from '../../components/common';
 import { DatePicker } from '../../components/DatePicker';
 import { useTaskStore } from '../../stores/taskStore';
+import { useTheme, ThemeColors } from '../../theme';
 import type { PlanType, CreateTaskInput } from '../../types';
 
 export const TaskDetailScreen: React.FC = () => {
   const { taskId, createNew } = useLocalSearchParams();
   const router = useRouter();
   const { addTask, updateTask, deleteTask, tasks } = useTaskStore();
+  const colors = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const existingTask = taskId ? tasks.find((t) => t.id === taskId) : null;
 
   const [title, setTitle] = useState('');
@@ -153,65 +156,66 @@ export const TaskDetailScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  content: {
-    padding: 16,
-  },
-  textArea: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333333',
-    marginBottom: 12,
-  },
-  planTypeContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  planTypeButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-  },
-  planTypeButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  planTypeButtonText: {
-    fontSize: 14,
-    color: '#666666',
-  },
-  planTypeButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  dateButton: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  dateButtonText: {
-    fontSize: 16,
-    color: '#333333',
-  },
-  actions: {
-    gap: 12,
-    marginTop: 24,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    content: {
+      padding: 16,
+    },
+    textArea: {
+      minHeight: 100,
+      textAlignVertical: 'top',
+    },
+    section: {
+      marginBottom: 24,
+    },
+    sectionLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: c.text,
+      marginBottom: 12,
+    },
+    planTypeContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    planTypeButton: {
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 8,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    planTypeButtonActive: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    planTypeButtonText: {
+      fontSize: 14,
+      color: c.textSecondary,
+    },
+    planTypeButtonTextActive: {
+      color: '#FFFFFF',
+    },
+    dateButton: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    dateButtonText: {
+      fontSize: 16,
+      color: c.text,
+    },
+    actions: {
+      gap: 12,
+      marginTop: 24,
+    },
+  });

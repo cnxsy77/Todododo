@@ -1,11 +1,26 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Switch, Linking } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Switch, Linking, ActivityIndicator } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
 import { exportData } from '../../utils/export';
+import { importData } from '../../utils/import';
 import { useThemeStore } from '../../stores/themeStore';
+import { useTheme, ThemeColors } from '../../theme';
+import { useTaskStore } from '../../stores/taskStore';
+import { useTransactionStore } from '../../stores/transactionStore';
+import { useCategoryStore } from '../../stores/categoryStore';
+import { useBudgetStore } from '../../stores/budgetStore';
 
 export const SettingsScreen: React.FC = () => {
-  const { theme, isDarkMode, setTheme, toggleTheme } = useThemeStore();
+  const { theme, isDarkMode, setTheme } = useThemeStore();
+  const colors = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const loadTasks = useTaskStore((s) => s.loadTasks);
+  const loadTransactions = useTransactionStore((s) => s.loadTransactions);
+  const loadCategories = useCategoryStore((s) => s.loadCategories);
+  const loadBudgets = useBudgetStore((s) => s.loadBudgets);
 
   const handleThemeChange = async (value: boolean) => {
     if (value) {
@@ -26,11 +41,61 @@ export const SettingsScreen: React.FC = () => {
     }
   };
 
-  const handleImport = async () => {
-    Alert.alert('提示', '导入功能开发中...');
+  const refreshAllStores = async () => {
+    await Promise.all([
+      loadTasks(),
+      loadTransactions(),
+      loadCategories(),
+      loadBudgets(),
+    ]);
   };
 
-  const settingsSections = [
+  const handleImport = async () => {
+    Alert.alert(
+      '导入数据',
+      '导入将清空当前的 任务 / 交易 / 分类 / 预算 数据并替换为文件内容。是否继续？',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '选择文件并导入',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: 'application/json',
+                copyToCacheDirectory: true,
+              });
+              if (result.canceled || !result.assets?.length) {
+                return;
+              }
+              const file = result.assets[0];
+              setIsImporting(true);
+              const summary = await importData(file.uri);
+              await refreshAllStores();
+              Alert.alert(
+                '导入成功',
+                `任务 ${summary.tasks} 条\n交易 ${summary.transactions} 条\n分类 ${summary.categories} 个\n预算 ${summary.budgets} 个`
+              );
+            } catch (error) {
+              console.error('Import failed:', error);
+              Alert.alert('错误', '导入失败，请检查文件格式是否正确');
+            } finally {
+              setIsImporting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const settingsSections: {
+    title: string;
+    items: Array<
+      | { label: string; type: 'switch'; value: boolean; onValueChange: (v: boolean) => void }
+      | { label: string; type: 'button'; onPress: () => void; disabled?: boolean; hint?: string }
+      | { label: string; type: 'text'; value: string }
+    >;
+  }[] = [
     {
       title: '外观',
       items: [
@@ -58,11 +123,14 @@ export const SettingsScreen: React.FC = () => {
           type: 'button',
           onPress: handleExport,
           disabled: isExporting,
+          hint: isExporting ? '导出中...' : undefined,
         },
         {
           label: '导入数据',
           type: 'button',
           onPress: handleImport,
+          disabled: isImporting,
+          hint: isImporting ? '导入中...' : undefined,
         },
       ],
     },
@@ -97,13 +165,21 @@ export const SettingsScreen: React.FC = () => {
                   index < section.items.length - 1 && styles.settingItemBorder,
                 ]}
               >
-                <Text style={styles.settingLabel}>{item.label}</Text>
+                <View style={styles.settingLabelRow}>
+                  {item.type === 'button' && item.label === '导入数据' && isImporting && (
+                    <ActivityIndicator size="small" color={colors.primary} style={styles.indicator} />
+                  )}
+                  {item.type === 'button' && item.label === '导出数据' && isExporting && (
+                    <ActivityIndicator size="small" color={colors.primary} style={styles.indicator} />
+                  )}
+                  <Text style={styles.settingLabel}>{item.label}</Text>
+                </View>
 
                 {item.type === 'switch' && (
                   <Switch
                     value={item.value}
                     onValueChange={item.onValueChange}
-                    trackColor={{ false: '#E5E5EA', true: '#007AFF' }}
+                    trackColor={{ false: colors.switchOff, true: colors.primary }}
                     thumbColor="#FFFFFF"
                   />
                 )}
@@ -120,7 +196,7 @@ export const SettingsScreen: React.FC = () => {
                         item.disabled && styles.settingValueDisabled,
                       ]}
                     >
-                      {item.label === '导出数据' && isExporting ? '导出中...' : '›'}
+                      {item.hint || '›'}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -141,53 +217,62 @@ export const SettingsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  section: {
-    marginTop: 24,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#666666',
-    textTransform: 'uppercase',
-    marginBottom: 8,
-    paddingHorizontal: 16,
-  },
-  sectionContent: {
-    backgroundColor: '#FFFFFF',
-  },
-  settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  settingItemBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
-  },
-  settingLabel: {
-    fontSize: 16,
-    color: '#000000',
-  },
-  settingValue: {
-    fontSize: 20,
-    color: '#C7C7CC',
-  },
-  settingValueDisabled: {
-    color: '#CCCCCC',
-  },
-  footer: {
-    paddingVertical: 32,
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 14,
-    color: '#999999',
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    section: {
+      marginTop: 24,
+    },
+    sectionTitle: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.textSecondary,
+      textTransform: 'uppercase',
+      marginBottom: 8,
+      paddingHorizontal: 16,
+    },
+    sectionContent: {
+      backgroundColor: c.surface,
+    },
+    settingItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+    },
+    settingItemBorder: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.hairline,
+    },
+    settingLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    indicator: {
+      marginRight: 8,
+    },
+    settingLabel: {
+      fontSize: 16,
+      color: c.text,
+    },
+    settingValue: {
+      fontSize: 20,
+      color: c.textTertiary,
+    },
+    settingValueDisabled: {
+      color: c.textTertiary,
+      opacity: 0.6,
+    },
+    footer: {
+      paddingVertical: 32,
+      alignItems: 'center',
+    },
+    footerText: {
+      fontSize: 14,
+      color: c.textTertiary,
+    },
+  });
