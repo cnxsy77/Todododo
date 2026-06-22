@@ -1,5 +1,5 @@
 import { getDatabase, SQLiteDatabase } from './schema';
-import type { Task, CreateTaskInput, UpdateTaskInput } from '../types';
+import type { Task, CreateTaskInput, UpdateTaskInput, PlanType } from '../types';
 
 // 辅助函数：执行查询
 const executeQuery = <T>(
@@ -304,25 +304,38 @@ export const updateTaskOrders = async (
   });
 };
 
-// 移动任务到新的日期
+// 移动任务到新的日期（同时更新 plan_type 以匹配目标视图）
 export const moveTaskToDate = async (
   id: string,
   newStartDate: number,
-  newEndDate?: number
+  newEndDate?: number,
+  newPlanType?: PlanType
 ): Promise<void> => {
   const db = await getDatabase();
   return new Promise((resolve, reject) => {
     db.transaction(
       (tx) => {
-        tx.executeSql(
-          'UPDATE tasks SET start_date = ?, end_date = ?, updated_at = ? WHERE id = ?',
-          [newStartDate, newEndDate || null, Date.now(), id],
-          () => resolve(),
-          (_, error) => {
-            reject(error);
-            return false;
-          }
-        );
+        if (newPlanType) {
+          tx.executeSql(
+            'UPDATE tasks SET start_date = ?, end_date = ?, plan_type = ?, updated_at = ? WHERE id = ?',
+            [newStartDate, newEndDate || null, newPlanType, Date.now(), id],
+            () => resolve(),
+            (_, error) => {
+              reject(error);
+              return false;
+            }
+          );
+        } else {
+          tx.executeSql(
+            'UPDATE tasks SET start_date = ?, end_date = ?, updated_at = ? WHERE id = ?',
+            [newStartDate, newEndDate || null, Date.now(), id],
+            () => resolve(),
+            (_, error) => {
+              reject(error);
+              return false;
+            }
+          );
+        }
       },
       reject
     );

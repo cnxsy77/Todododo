@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import DraggableFlatList, { ScaleDecorator, DragEndParams, RenderItemParams } from 'react-native-draggable-flatlist';
-import type { Task, ViewType } from '../../types';
+import type { Task, ViewType, PlanType } from '../../types';
 import { TaskItem } from '../TaskItem';
 import { useTheme, ThemeColors } from '../../theme';
 
@@ -13,7 +13,7 @@ interface TaskListProps {
   onToggleTask?: (id: string) => void;
   onTaskPress?: (task: Task) => void;
   onReorder?: (taskIds: string[]) => void;
-  onMoveTaskToDate?: (taskId: string, newStart: number, newEnd?: number) => void;
+  onMoveTaskToDate?: (taskId: string, newStart: number, newEnd?: number, newPlanType?: PlanType) => void;
   emptyMessage?: string;
 }
 
@@ -45,7 +45,9 @@ export const TaskList: React.FC<TaskListProps> = ({
   // 标记是否正在使用本地数据（拖拽后等待同步）
   const [isUsingLocalData, setIsUsingLocalData] = useState(false);
   // 使用 ref 跟踪拖拽后待同步的状态（避免闭包问题）
-  const pendingSyncRef = React.useRef(false);
+  // 记录被拖任务 ID 与目标范围起始，用于检测 store 是否已同步
+  const pendingSyncRef = React.useRef<{ taskId: string; targetStart: number } | null>(null);
+  const pendingTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 排序后的范围
   const sortedRanges = useMemo(() => {
@@ -93,11 +95,25 @@ export const TaskList: React.FC<TaskListProps> = ({
   }, [groupedTasks, sortedRanges]);
 
   // 当 props 数据变化时，重置本地数据标记并更新
-  // 但只在没有待同步的拖拽操作时才执行
+  // 但只在 store 已同步拖拽结果后（或无待同步操作时）才执行
   React.useEffect(() => {
-    // 如果有待同步的拖拽操作，不要覆盖本地数据
-    if (pendingSyncRef.current) {
-      return;
+    const pending = pendingSyncRef.current;
+
+    if (pending) {
+      // 检查被拖任务是否已落入目标范围（store 同步完成的标志）
+      const synced = tasks.find(
+        (t) => t.id === pending.taskId && t.startDate === pending.targetStart
+      );
+      if (!synced) {
+        // store 尚未同步，保持本地数据，避免列表回弹
+        return;
+      }
+      // 已同步，清除待同步标记与兜底超时
+      pendingSyncRef.current = null;
+      if (pendingTimeoutRef.current) {
+        clearTimeout(pendingTimeoutRef.current);
+        pendingTimeoutRef.current = null;
+      }
     }
 
     setData(tasks);
@@ -183,6 +199,13 @@ export const TaskList: React.FC<TaskListProps> = ({
 
     if (fromRangeStart !== toRangeStart) {
       // 跨日期拖拽
+      const planTypeMap: Record<ViewType, PlanType> = {
+        day: 'daily',
+        week: 'weekly',
+        month: 'monthly',
+        year: 'yearly',
+      };
+      const targetPlanType: PlanType = planTypeMap[currentView];
       const targetRange = sortedRanges.find((r) => r.start === toRangeStart);
       if (targetRange) {
         // 立即更新本地数据，防止列表回弹
@@ -197,6 +220,7 @@ export const TaskList: React.FC<TaskListProps> = ({
             ...draggableDraggedItem.task,
             startDate: targetRange.start,
             endDate: targetRange.end,
+            planType: targetPlanType,
           },
         };
 
@@ -284,20 +308,44 @@ export const TaskList: React.FC<TaskListProps> = ({
 
         setLocalRenderData(newLocalData);
         setIsUsingLocalData(true);
-        pendingSyncRef.current = true;
+        pendingSyncRef.current = {
+          taskId: draggableDraggedItem.taskId,
+          targetStart: targetRange.start,
+        };
 
-        onMoveTaskToDate?.(draggableDraggedItem.taskId, targetRange.start, targetRange.end);
+        onMoveTaskToDate?.(
+          draggableDraggedItem.taskId,
+          targetRange.start,
+          targetRange.end,
+          targetPlanType
+        );
 
-        setTimeout(() => {
-          pendingSyncRef.current = false;
-        }, 100);
+        // 兜底超时：若 store 同步检测迟迟未触发（如更新失败或 startDate 恰好相等），
+        // 强制清除标记并切回 props 数据，避免永久卡在本地数据
+        if (pendingTimeoutRef.current) {
+          clearTimeout(pendingTimeoutRef.current);
+        }
+        pendingTimeoutRef.current = setTimeout(() => {
+          pendingSyncRef.current = null;
+          pendingTimeoutRef.current = null;
+          setIsUsingLocalData(false);
+        }, 1500);
       }
     } else {
-      // 同日期内排序 - 保持头部位置不变，只排序任务
-      const taskIds = newData
-        .filter((item): item is DraggableTask => !('isHeader' in item))
-        .map((item) => item.taskId);
-      onReorder?.(taskIds);
+      // 同日期内重排：只提取源范围 fromRangeStart 内的任务 ID，
+      // 避免 updateTaskOrders 对全部日期任务重新编号而打乱其他日期的排序
+      const rangeTaskIds: string[] = [];
+      let inRange = false;
+      for (const item of newData) {
+        if ('isHeader' in item && item.isHeader) {
+          inRange = item.rangeStart === fromRangeStart;
+          continue;
+        }
+        if (inRange) {
+          rangeTaskIds.push((item as DraggableTask).taskId);
+        }
+      }
+      onReorder?.(rangeTaskIds);
     }
   }, [sortedRanges, onMoveTaskToDate, onReorder]);
 
