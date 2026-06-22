@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import type { Task } from '../../types';
 import { useTheme, ThemeColors } from '../../theme';
 
@@ -22,17 +22,11 @@ export const TaskItem: React.FC<TaskItemProps> = ({
 }) => {
   const colors = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(task.title);
 
   const handleComplete = () => {
     if (onToggle) {
       onToggle(task.id);
     }
-  };
-
-  const handleSave = () => {
-    setIsEditing(false);
   };
 
   const getPlanTypeLabel = () => {
@@ -67,32 +61,19 @@ export const TaskItem: React.FC<TaskItemProps> = ({
 
       {/* 任务内容 */}
       <View style={styles.content}>
-        {isEditing ? (
-          <TextInput
-            style={styles.input}
-            value={editTitle}
-            onChangeText={setEditTitle}
-            onBlur={handleSave}
-            onSubmitEditing={handleSave}
-            autoFocus
-          />
-        ) : (
-          <>
-            <Text
-              style={[styles.title, task.isCompleted && styles.titleCompleted]}
-              numberOfLines={2}
-              onPress={() => onPress?.(task)}
-              onLongPress={() => onLongPress?.(task)}
-            >
-              {task.title}
-            </Text>
+        <Text
+          style={[styles.title, task.isCompleted && styles.titleCompleted]}
+          numberOfLines={2}
+          onPress={() => onPress?.(task)}
+          onLongPress={() => onLongPress?.(task)}
+        >
+          {task.title}
+        </Text>
 
-            {task.description && (
-              <Text style={styles.description} numberOfLines={1}>
-                {task.description}
-              </Text>
-            )}
-          </>
+        {task.description && (
+          <Text style={styles.description} numberOfLines={1}>
+            {task.description}
+          </Text>
         )}
 
         <View style={styles.footer}>
@@ -201,14 +182,6 @@ const createStyles = (c: ThemeColors) =>
     date: {
       fontSize: 12,
       color: c.textTertiary,
-    },
-    input: {
-      fontSize: 16,
-      fontWeight: '500',
-      color: c.text,
-      borderBottomWidth: 1,
-      borderBottomColor: c.primary,
-      paddingBottom: 4,
     },
     dragHandle: {
       marginLeft: 8,

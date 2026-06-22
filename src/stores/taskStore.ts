@@ -9,15 +9,12 @@ interface TaskState {
 
   // Actions
   loadTasks: () => Promise<void>;
-  loadTasksByPlanType: (planType: string) => Promise<void>;
-  loadTasksByDateRange: (start: number, end: number) => Promise<void>;
   addTask: (input: CreateTaskInput) => Promise<Task>;
   updateTask: (id: string, input: UpdateTaskInput) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   toggleTaskCompleted: (id: string) => Promise<void>;
   reorderTasks: (planType: string, taskIds: string[]) => Promise<void>;
   moveTaskToDate: (id: string, newStart: number, newEnd?: number, newPlanType?: PlanType) => Promise<void>;
-  searchTasks: (query: string) => Promise<void>;
 }
 
 export const useTaskStore = create<TaskState>((set, get) => ({
@@ -29,26 +26,6 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const tasks = await queries.getAllTasks();
-      set({ tasks, isLoading: false });
-    } catch (err) {
-      set({ error: (err as Error).message, isLoading: false });
-    }
-  },
-
-  loadTasksByPlanType: async (planType: string) => {
-    set({ isLoading: true, error: null });
-    try {
-      const tasks = await queries.getTasksByPlanType(planType);
-      set({ tasks, isLoading: false });
-    } catch (err) {
-      set({ error: (err as Error).message, isLoading: false });
-    }
-  },
-
-  loadTasksByDateRange: async (start: number, end: number) => {
-    set({ isLoading: true, error: null });
-    try {
-      const tasks = await queries.getTasksByDateRange(start, end);
       set({ tasks, isLoading: false });
     } catch (err) {
       set({ error: (err as Error).message, isLoading: false });
@@ -131,10 +108,5 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           : task
       ),
     }));
-  },
-
-  searchTasks: async (query: string) => {
-    const tasks = await queries.searchTasks(query);
-    set({ tasks });
   },
 }));

@@ -1,127 +1,39 @@
-import { getDatabase, SQLiteDatabase } from './schema';
+import { getDatabase } from './schema';
+import type { SQLiteDatabase } from './schema';
 import type { Task, CreateTaskInput, UpdateTaskInput, PlanType } from '../types';
 
-// 辅助函数：执行查询
-const executeQuery = <T>(
-  tx: any,
-  sql: string,
-  params?: any[]
-): Promise<T[]> => {
-  return new Promise((resolve, reject) => {
-    tx.executeSql(
-      sql,
-      params,
-      (_, { rows }) => {
-        const result: T[] = [];
-        for (let i = 0; i < rows.length; i++) {
-          result.push(rows.item(i) as T);
-        }
-        resolve(result);
-      },
-      (_, error) => {
-        reject(error);
-        return false;
-      }
-    );
-  });
-};
-
-// 辅助函数：执行单个查询
-const executeSingleQuery = <T>(
-  tx: any,
-  sql: string,
-  params?: any[]
-): Promise<T | undefined> => {
-  return new Promise((resolve, reject) => {
-    tx.executeSql(
-      sql,
-      params,
-      (_, { rows }) => {
-        if (rows.length > 0) {
-          resolve(rows.item(0) as T);
-        } else {
-          resolve(undefined);
-        }
-      },
-      (_, error) => {
-        reject(error);
-        return false;
-      }
-    );
-  });
-};
+// 行映射：DB 列(snake_case) → Task(camelCase)
+const mapRow = (row: any): Task => ({
+  id: row.id,
+  title: row.title,
+  description: row.description ?? undefined,
+  planType: row.plan_type,
+  startDate: row.start_date,
+  endDate: row.end_date ?? undefined,
+  isCompleted: row.is_completed === 1,
+  order: row.sort_order,
+  parentTaskId: row.parent_task_id ?? undefined,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
 
 // 获取所有任务
 export const getAllTasks = async (): Promise<Task[]> => {
   const db = await getDatabase();
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        executeQuery<Task>(tx, 'SELECT * FROM tasks ORDER BY sort_order ASC')
-          .then(resolve)
-          .catch(reject);
-      },
-      reject
-    );
-  });
-};
-
-// 根据计划类型获取任务
-export const getTasksByPlanType = async (planType: string): Promise<Task[]> => {
-  const db = await getDatabase();
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        executeQuery<Task>(
-          tx,
-          'SELECT * FROM tasks WHERE plan_type = ? ORDER BY sort_order ASC',
-          [planType]
-        )
-          .then(resolve)
-          .catch(reject);
-      },
-      reject
-    );
-  });
-};
-
-// 根据日期范围获取任务
-export const getTasksByDateRange = async (
-  startDate: number,
-  endDate: number
-): Promise<Task[]> => {
-  const db = await getDatabase();
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        executeQuery<Task>(
-          tx,
-          `SELECT * FROM tasks
-           WHERE start_date >= ? AND start_date <= ?
-           ORDER BY plan_type, sort_order ASC`,
-          [startDate, endDate]
-        )
-          .then(resolve)
-          .catch(reject);
-      },
-      reject
-    );
-  });
+  const rows = await db.getAllAsync<any>(
+    'SELECT * FROM tasks ORDER BY sort_order ASC'
+  );
+  return rows.map(mapRow);
 };
 
 // 根据 ID 获取任务
 export const getTaskById = async (id: string): Promise<Task | undefined> => {
   const db = await getDatabase();
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        executeSingleQuery<Task>(tx, 'SELECT * FROM tasks WHERE id = ?', [id])
-          .then(resolve)
-          .catch(reject);
-      },
-      reject
-    );
-  });
+  const row = await db.getFirstAsync<any>(
+    'SELECT * FROM tasks WHERE id = ?',
+    [id]
+  );
+  return row ? mapRow(row) : undefined;
 };
 
 // 创建任务
@@ -130,60 +42,49 @@ export const createTask = async (input: CreateTaskInput): Promise<Task> => {
   const id = crypto.randomUUID();
   const now = Date.now();
 
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        // 获取当前最大 sort_order
-        executeSingleQuery<{ max_order: number }>(
-          tx,
-          'SELECT MAX(sort_order) as max_order FROM tasks WHERE plan_type = ?',
-          [input.planType]
-        )
-          .then((result) => {
-            const sort_order = (result?.max_order || -1) + 1;
+  await db.withTransactionAsync(async () => {
+    // 获取当前最大 sort_order
+    const result = await db.getFirstAsync<{ max_order: number }>(
+      'SELECT MAX(sort_order) as max_order FROM tasks WHERE plan_type = ?',
+      [input.planType]
+    );
+    const sort_order = (result?.max_order ?? -1) + 1;
 
-            tx.executeSql(
-              `INSERT INTO tasks (id, title, description, plan_type, start_date, end_date, is_completed, sort_order, parent_task_id, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [
-                id,
-                input.title,
-                input.description || null,
-                input.planType,
-                input.startDate,
-                input.endDate || null,
-                0,
-                sort_order,
-                input.parentTaskId || null,
-                now,
-                now,
-              ],
-              () => {
-                resolve({
-                  id,
-                  title: input.title,
-                  description: input.description,
-                  planType: input.planType,
-                  startDate: input.startDate,
-                  endDate: input.endDate,
-                  isCompleted: false,
-                  order: sort_order,
-                  parentTaskId: input.parentTaskId,
-                  createdAt: now,
-                  updatedAt: now,
-                });
-              },
-              (_, error) => {
-                reject(error);
-                return false;
-              }
-            );
-          })
-          .catch(reject);
-      },
-      reject
+    await db.runAsync(
+      `INSERT INTO tasks (id, title, description, plan_type, start_date, end_date, is_completed, sort_order, parent_task_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        input.title,
+        input.description || null,
+        input.planType,
+        input.startDate,
+        input.endDate || null,
+        0,
+        sort_order,
+        input.parentTaskId || null,
+        now,
+        now,
+      ]
     );
   });
+
+  const created = await getTaskById(id);
+  return (
+    created ?? {
+      id,
+      title: input.title,
+      description: input.description,
+      planType: input.planType,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      isCompleted: false,
+      order: 0,
+      parentTaskId: input.parentTaskId,
+      createdAt: now,
+      updatedAt: now,
+    }
+  );
 };
 
 // 更新任务
@@ -232,75 +133,32 @@ export const updateTask = async (
   values.push(Date.now());
   values.push(id);
 
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        tx.executeSql(
-          `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`,
-          values,
-          () => resolve(),
-          (_, error) => {
-            reject(error);
-            return false;
-          }
-        );
-      },
-      reject
-    );
-  });
+  await db.runAsync(
+    `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`,
+    values
+  );
 };
 
 // 删除任务
 export const deleteTask = async (id: string): Promise<void> => {
   const db = await getDatabase();
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        tx.executeSql(
-          'DELETE FROM tasks WHERE id = ?',
-          [id],
-          () => resolve(),
-          (_, error) => {
-            reject(error);
-            return false;
-          }
-        );
-      },
-      reject
-    );
-  });
+  await db.runAsync('DELETE FROM tasks WHERE id = ?', [id]);
 };
 
 // 批量更新任务排序
 export const updateTaskOrders = async (
-  planType: string,
+  _planType: string,
   taskIds: string[]
 ): Promise<void> => {
   const db = await getDatabase();
-
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        const promises = taskIds.map((taskId, i) => {
-          return new Promise<void>((innerResolve, innerReject) => {
-            tx.executeSql(
-              'UPDATE tasks SET sort_order = ?, updated_at = ? WHERE id = ?',
-              [i, Date.now(), taskId],
-              () => innerResolve(),
-              (_, error) => {
-                innerReject(error);
-                return false;
-              }
-            );
-          });
-        });
-
-        Promise.all(promises)
-          .then(() => resolve())
-          .catch(reject);
-      },
-      reject
-    );
+  await db.withTransactionAsync(async () => {
+    const now = Date.now();
+    for (let i = 0; i < taskIds.length; i++) {
+      await db.runAsync(
+        'UPDATE tasks SET sort_order = ?, updated_at = ? WHERE id = ?',
+        [i, now, taskIds[i]]
+      );
+    }
   });
 };
 
@@ -312,70 +170,18 @@ export const moveTaskToDate = async (
   newPlanType?: PlanType
 ): Promise<void> => {
   const db = await getDatabase();
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        if (newPlanType) {
-          tx.executeSql(
-            'UPDATE tasks SET start_date = ?, end_date = ?, plan_type = ?, updated_at = ? WHERE id = ?',
-            [newStartDate, newEndDate || null, newPlanType, Date.now(), id],
-            () => resolve(),
-            (_, error) => {
-              reject(error);
-              return false;
-            }
-          );
-        } else {
-          tx.executeSql(
-            'UPDATE tasks SET start_date = ?, end_date = ?, updated_at = ? WHERE id = ?',
-            [newStartDate, newEndDate || null, Date.now(), id],
-            () => resolve(),
-            (_, error) => {
-              reject(error);
-              return false;
-            }
-          );
-        }
-      },
-      reject
+  if (newPlanType) {
+    await db.runAsync(
+      'UPDATE tasks SET start_date = ?, end_date = ?, plan_type = ?, updated_at = ? WHERE id = ?',
+      [newStartDate, newEndDate || null, newPlanType, Date.now(), id]
     );
-  });
+  } else {
+    await db.runAsync(
+      'UPDATE tasks SET start_date = ?, end_date = ?, updated_at = ? WHERE id = ?',
+      [newStartDate, newEndDate || null, Date.now(), id]
+    );
+  }
 };
 
-// 获取子任务
-export const getChildTasks = async (parentId: string): Promise<Task[]> => {
-  const db = await getDatabase();
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        executeQuery<Task>(
-          tx,
-          'SELECT * FROM tasks WHERE parent_task_id = ? ORDER BY sort_order ASC',
-          [parentId]
-        )
-          .then(resolve)
-          .catch(reject);
-      },
-      reject
-    );
-  });
-};
-
-// 搜索任务
-export const searchTasks = async (query: string): Promise<Task[]> => {
-  const db = await getDatabase();
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        executeQuery<Task>(
-          tx,
-          'SELECT * FROM tasks WHERE title LIKE ? ORDER BY sort_order ASC',
-          [`%${query}%`]
-        )
-          .then(resolve)
-          .catch(reject);
-      },
-      reject
-    );
-  });
-};
+// 导出类型供其他模块复用
+export type { SQLiteDatabase };

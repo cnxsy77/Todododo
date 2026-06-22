@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Category, CreateCategoryInput } from '../types';
+import type { Category, CreateCategoryInput, UpdateCategoryInput } from '../types';
 import * as queries from '../database/categoryQueries';
 
 interface CategoryState {
@@ -11,6 +11,7 @@ interface CategoryState {
   loadCategories: () => Promise<void>;
   loadCategoriesByType: (type: 'income' | 'expense') => Promise<void>;
   addCategory: (input: CreateCategoryInput) => Promise<Category>;
+  updateCategory: (id: string, input: UpdateCategoryInput) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   getCategoryById: (id: string) => Category | undefined;
   getCategoriesByType: (type: 'income' | 'expense') => Category[];
@@ -45,6 +46,15 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
     const newCategory = await queries.createCategory(input);
     set((state) => ({ categories: [...state.categories, newCategory] }));
     return newCategory;
+  },
+
+  updateCategory: async (id: string, input: UpdateCategoryInput) => {
+    await queries.updateCategory(id, input);
+    set((state) => ({
+      categories: state.categories.map((c) =>
+        c.id === id ? { ...c, ...input } : c
+      ),
+    }));
   },
 
   deleteCategory: async (id: string) => {

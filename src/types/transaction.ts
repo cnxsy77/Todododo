@@ -49,6 +49,13 @@ export interface CreateCategoryInput {
   color: string;
 }
 
+// 更新分类输入
+export interface UpdateCategoryInput {
+  name?: string;
+  icon?: string;
+  color?: string;
+}
+
 // 预算周期
 export type BudgetPeriod = 'monthly' | 'yearly';
 

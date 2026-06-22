@@ -1,5 +1,5 @@
-import * as FileSystem from 'expo-file-system';
-import { Sharing } from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
+import { isAvailableAsync, shareAsync } from 'expo-sharing';
 import * as queries from '../database/queries';
 import * as transactionQueries from '../database/transactionQueries';
 import * as categoryQueries from '../database/categoryQueries';
@@ -38,8 +38,8 @@ export const exportData = async (): Promise<void> => {
       encoding: FileSystem.EncodingType.UTF8,
     });
 
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(fileUri, {
+    if (await isAvailableAsync()) {
+      await shareAsync(fileUri, {
         mimeType: 'application/json',
         dialogTitle: '导出数据',
         UTI: 'public.json',

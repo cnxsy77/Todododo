@@ -1,66 +1,34 @@
 import { getDatabase } from './schema';
 import type { Transaction, CreateTransactionInput, UpdateTransactionInput } from '../types/transaction';
 
-// 辅助函数
-const executeQuery = <T>(
-  tx: any,
-  sql: string,
-  params?: any[]
-): Promise<T[]> => {
-  return new Promise((resolve, reject) => {
-    tx.executeSql(
-      sql,
-      params,
-      (_, { rows }) => {
-        const result: T[] = [];
-        for (let i = 0; i < rows.length; i++) {
-          result.push(rows.item(i) as T);
-        }
-        resolve(result);
-      },
-      (_, error) => {
-        reject(error);
-        return false;
-      }
-    );
-  });
-};
+const mapRow = (row: any): Transaction => ({
+  id: row.id,
+  type: row.type,
+  amount: row.amount,
+  category: row.category,
+  note: row.note ?? undefined,
+  date: row.date,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
 
 // 获取所有交易
 export const getAllTransactions = async (): Promise<Transaction[]> => {
   const db = await getDatabase();
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        executeQuery<Transaction>(
-          tx,
-          'SELECT * FROM transactions ORDER BY date DESC, created_at DESC'
-        )
-          .then(resolve)
-          .catch(reject);
-      },
-      reject
-    );
-  });
+  const rows = await db.getAllAsync<any>(
+    'SELECT * FROM transactions ORDER BY date DESC, created_at DESC'
+  );
+  return rows.map(mapRow);
 };
 
 // 根据类型获取交易
 export const getTransactionsByType = async (type: 'income' | 'expense'): Promise<Transaction[]> => {
   const db = await getDatabase();
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        executeQuery<Transaction>(
-          tx,
-          'SELECT * FROM transactions WHERE type = ? ORDER BY date DESC, created_at DESC',
-          [type]
-        )
-          .then(resolve)
-          .catch(reject);
-      },
-      reject
-    );
-  });
+  const rows = await db.getAllAsync<any>(
+    'SELECT * FROM transactions WHERE type = ? ORDER BY date DESC, created_at DESC',
+    [type]
+  );
+  return rows.map(mapRow);
 };
 
 // 根据日期范围获取交易
@@ -69,35 +37,21 @@ export const getTransactionsByDateRange = async (
   endDate: number
 ): Promise<Transaction[]> => {
   const db = await getDatabase();
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        executeQuery<Transaction>(
-          tx,
-          'SELECT * FROM transactions WHERE date >= ? AND date <= ? ORDER BY date DESC, created_at DESC',
-          [startDate, endDate]
-        )
-          .then(resolve)
-          .catch(reject);
-      },
-      reject
-    );
-  });
+  const rows = await db.getAllAsync<any>(
+    'SELECT * FROM transactions WHERE date >= ? AND date <= ? ORDER BY date DESC, created_at DESC',
+    [startDate, endDate]
+  );
+  return rows.map(mapRow);
 };
 
 // 根据 ID 获取交易
 export const getTransactionById = async (id: string): Promise<Transaction | undefined> => {
   const db = await getDatabase();
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        executeQuery<Transaction>(tx, 'SELECT * FROM transactions WHERE id = ?', [id])
-          .then((result) => resolve(result[0]))
-          .catch(reject);
-      },
-      reject
-    );
-  });
+  const row = await db.getFirstAsync<any>(
+    'SELECT * FROM transactions WHERE id = ?',
+    [id]
+  );
+  return row ? mapRow(row) : undefined;
 };
 
 // 创建交易
@@ -106,34 +60,22 @@ export const createTransaction = async (input: CreateTransactionInput): Promise<
   const id = crypto.randomUUID();
   const now = Date.now();
 
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        tx.executeSql(
-          `INSERT INTO transactions (id, type, amount, category, note, date, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [id, input.type, input.amount, input.category, input.note || null, input.date, now, now],
-          () => {
-            resolve({
-              id,
-              type: input.type,
-              amount: input.amount,
-              category: input.category,
-              note: input.note,
-              date: input.date,
-              createdAt: now,
-              updatedAt: now,
-            });
-          },
-          (_, error) => {
-            reject(error);
-            return false;
-          }
-        );
-      },
-      reject
-    );
-  });
+  await db.runAsync(
+    `INSERT INTO transactions (id, type, amount, category, note, date, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, input.type, input.amount, input.category, input.note || null, input.date, now, now]
+  );
+
+  return {
+    id,
+    type: input.type,
+    amount: input.amount,
+    category: input.category,
+    note: input.note,
+    date: input.date,
+    createdAt: now,
+    updatedAt: now,
+  };
 };
 
 // 更新交易
@@ -170,41 +112,14 @@ export const updateTransaction = async (
   values.push(Date.now());
   values.push(id);
 
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        tx.executeSql(
-          `UPDATE transactions SET ${updates.join(', ')} WHERE id = ?`,
-          values,
-          () => resolve(),
-          (_, error) => {
-            reject(error);
-            return false;
-          }
-        );
-      },
-      reject
-    );
-  });
+  await db.runAsync(
+    `UPDATE transactions SET ${updates.join(', ')} WHERE id = ?`,
+    values
+  );
 };
 
 // 删除交易
 export const deleteTransaction = async (id: string): Promise<void> => {
   const db = await getDatabase();
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        tx.executeSql(
-          'DELETE FROM transactions WHERE id = ?',
-          [id],
-          () => resolve(),
-          (_, error) => {
-            reject(error);
-            return false;
-          }
-        );
-      },
-      reject
-    );
-  });
+  await db.runAsync('DELETE FROM transactions WHERE id = ?', [id]);
 };
