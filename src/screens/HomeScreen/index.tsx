@@ -6,7 +6,7 @@ import { TaskList } from '../../components/TaskList';
 import { useView, useTasksByRanges } from '../../hooks';
 import { useTaskStore } from '../../stores/taskStore';
 import { useTheme, ThemeColors } from '../../theme';
-import type { TimeAxisUnit, PlanType } from '../../types';
+import type { TimeAxisUnit } from '../../types';
 
 export const HomeScreen: React.FC = () => {
   const router = useRouter();
@@ -107,10 +107,9 @@ export const HomeScreen: React.FC = () => {
   const handleMoveTaskToDate = async (
     taskId: string,
     newStart: number,
-    newEnd?: number,
-    newPlanType?: PlanType
+    newEnd?: number
   ) => {
-    await moveTaskToDate(taskId, newStart, newEnd, newPlanType);
+    await moveTaskToDate(taskId, newStart, newEnd);
   };
 
   const handleTaskPress = (task: any) => {

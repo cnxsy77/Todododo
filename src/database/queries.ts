@@ -1,6 +1,6 @@
 import { getDatabase } from './schema';
 import type { SQLiteDatabase } from './schema';
-import type { Task, CreateTaskInput, UpdateTaskInput, PlanType } from '../types';
+import type { Task, CreateTaskInput, UpdateTaskInput } from '../types';
 
 // 行映射：DB 列(snake_case) → Task(camelCase)
 const mapRow = (row: any): Task => ({
@@ -162,25 +162,17 @@ export const updateTaskOrders = async (
   });
 };
 
-// 移动任务到新的日期（同时更新 plan_type 以匹配目标视图）
+// 移动任务到新的日期
 export const moveTaskToDate = async (
   id: string,
   newStartDate: number,
-  newEndDate?: number,
-  newPlanType?: PlanType
+  newEndDate?: number
 ): Promise<void> => {
   const db = await getDatabase();
-  if (newPlanType) {
-    await db.runAsync(
-      'UPDATE tasks SET start_date = ?, end_date = ?, plan_type = ?, updated_at = ? WHERE id = ?',
-      [newStartDate, newEndDate || null, newPlanType, Date.now(), id]
-    );
-  } else {
-    await db.runAsync(
-      'UPDATE tasks SET start_date = ?, end_date = ?, updated_at = ? WHERE id = ?',
-      [newStartDate, newEndDate || null, Date.now(), id]
-    );
-  }
+  await db.runAsync(
+    'UPDATE tasks SET start_date = ?, end_date = ?, updated_at = ? WHERE id = ?',
+    [newStartDate, newEndDate || null, Date.now(), id]
+  );
 };
 
 // 导出类型供其他模块复用

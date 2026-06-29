@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Task, CreateTaskInput, UpdateTaskInput, PlanType } from '../types';
+import type { Task, CreateTaskInput, UpdateTaskInput } from '../types';
 import * as queries from '../database/queries';
 
 interface TaskState {
@@ -14,7 +14,7 @@ interface TaskState {
   deleteTask: (id: string) => Promise<void>;
   toggleTaskCompleted: (id: string) => Promise<void>;
   reorderTasks: (planType: string, taskIds: string[]) => Promise<void>;
-  moveTaskToDate: (id: string, newStart: number, newEnd?: number, newPlanType?: PlanType) => Promise<void>;
+  moveTaskToDate: (id: string, newStart: number, newEnd?: number) => Promise<void>;
 }
 
 export const useTaskStore = create<TaskState>((set, get) => ({
@@ -93,18 +93,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     });
   },
 
-  moveTaskToDate: async (id: string, newStart: number, newEnd?: number, newPlanType?: PlanType) => {
-    await queries.moveTaskToDate(id, newStart, newEnd, newPlanType);
+  moveTaskToDate: async (id: string, newStart: number, newEnd?: number) => {
+    await queries.moveTaskToDate(id, newStart, newEnd);
     set((state) => ({
       tasks: state.tasks.map((task) =>
         task.id === id
-          ? {
-              ...task,
-              startDate: newStart,
-              endDate: newEnd,
-              ...(newPlanType ? { planType: newPlanType } : {}),
-              updatedAt: Date.now(),
-            }
+          ? { ...task, startDate: newStart, endDate: newEnd, updatedAt: Date.now() }
           : task
       ),
     }));
