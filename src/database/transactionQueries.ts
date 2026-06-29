@@ -1,5 +1,6 @@
 import { getDatabase } from './schema';
 import type { Transaction, CreateTransactionInput, UpdateTransactionInput } from '../types/transaction';
+import { uuid } from '../utils/uuid';
 
 const mapRow = (row: any): Transaction => ({
   id: row.id,
@@ -57,7 +58,7 @@ export const getTransactionById = async (id: string): Promise<Transaction | unde
 // 创建交易
 export const createTransaction = async (input: CreateTransactionInput): Promise<Transaction> => {
   const db = await getDatabase();
-  const id = crypto.randomUUID();
+  const id = uuid();
   const now = Date.now();
 
   await db.runAsync(

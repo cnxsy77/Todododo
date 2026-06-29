@@ -1,6 +1,7 @@
 import { getDatabase } from './schema';
 import type { SQLiteDatabase } from './schema';
 import type { Task, CreateTaskInput, UpdateTaskInput } from '../types';
+import { uuid } from '../utils/uuid';
 
 // 行映射：DB 列(snake_case) → Task(camelCase)
 const mapRow = (row: any): Task => ({
@@ -39,7 +40,7 @@ export const getTaskById = async (id: string): Promise<Task | undefined> => {
 // 创建任务
 export const createTask = async (input: CreateTaskInput): Promise<Task> => {
   const db = await getDatabase();
-  const id = crypto.randomUUID();
+  const id = uuid();
   const now = Date.now();
 
   await db.withTransactionAsync(async () => {

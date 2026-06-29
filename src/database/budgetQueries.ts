@@ -1,5 +1,6 @@
 import { getDatabase } from './schema';
 import type { Budget, CreateBudgetInput, UpdateBudgetInput } from '../types/transaction';
+import { uuid } from '../utils/uuid';
 
 const mapRow = (row: any): Budget => ({
   id: row.id,
@@ -42,7 +43,7 @@ export const getBudgetByCategoryId = async (categoryId: string): Promise<Budget 
 // 创建预算
 export const createBudget = async (input: CreateBudgetInput): Promise<Budget> => {
   const db = await getDatabase();
-  const id = `budget_${crypto.randomUUID()}`;
+  const id = `budget_${uuid()}`;
   const now = Date.now();
 
   await db.runAsync(

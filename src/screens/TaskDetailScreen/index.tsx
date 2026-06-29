@@ -53,6 +53,7 @@ export const TaskDetailScreen: React.FC = () => {
       }
       router.back();
     } catch (error) {
+      console.error('[TaskDetail] 保存失败:', error);
       Alert.alert('错误', '保存失败');
     }
   };

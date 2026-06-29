@@ -17,6 +17,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   // 处理 expo-sqlite 的 Web 端导入
   if (moduleName === 'expo-sqlite' && platform === 'web') {
     return {
+      type: 'sourceFile',
       filePath: path.resolve(__dirname, 'src/database/expo-sqlite.mock.js'),
     };
   }
@@ -24,6 +25,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   // 处理 @expo/websql 的导入
   if (moduleName === '@expo/websql/custom' && platform === 'web') {
     return {
+      type: 'sourceFile',
       filePath: require.resolve('@expo/websql/custom/index.js'),
     };
   }
@@ -31,6 +33,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   // 处理 expo-sqlite 子模块的导入
   if (moduleName.startsWith('expo-sqlite/') && platform === 'web') {
     return {
+      type: 'sourceFile',
       filePath: path.resolve(__dirname, 'src/database/expo-sqlite.mock.js'),
     };
   }

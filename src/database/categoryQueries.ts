@@ -1,5 +1,6 @@
 import { getDatabase } from './schema';
 import type { Category, CreateCategoryInput, UpdateCategoryInput } from '../types/transaction';
+import { uuid } from '../utils/uuid';
 
 const mapRow = (row: any): Category => ({
   id: row.id,
@@ -42,7 +43,7 @@ export const getCategoryById = async (id: string): Promise<Category | undefined>
 // 创建分类
 export const createCategory = async (input: CreateCategoryInput): Promise<Category> => {
   const db = await getDatabase();
-  const id = `cat_${crypto.randomUUID()}`;
+  const id = `cat_${uuid()}`;
   const now = Date.now();
 
   await db.runAsync(
