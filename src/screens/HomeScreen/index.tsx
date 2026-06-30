@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { TimeAxis } from '../../components/TimeAxis';
 import { TaskList } from '../../components/TaskList';
+import { MovableFab } from '../../components/MovableFab';
 import { useView, useTasksByRanges } from '../../hooks';
 import { useTaskStore } from '../../stores/taskStore';
 import { useTheme, ThemeColors } from '../../theme';
@@ -189,14 +190,11 @@ export const HomeScreen: React.FC = () => {
         emptyMessage={getEmptyMessage()}
       />
 
-      {/* 添加任务按钮 */}
-      <TouchableOpacity
-        style={styles.fab}
+      {/* 添加任务按钮（可拖动） */}
+      <MovableFab
+        colors={colors}
         onPress={() => router.push({ pathname: '/task-detail', params: { createNew: 'true' } })}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+      />
     </View>
   );
 };
@@ -235,26 +233,5 @@ const createStyles = (c: ThemeColors) =>
       color: '#FFFFFF',
       fontSize: 12,
       fontWeight: '500',
-    },
-    fab: {
-      position: 'absolute',
-      right: 20,
-      bottom: 20,
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: c.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      shadowColor: c.shadow,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 6,
-      elevation: 8,
-    },
-    fabText: {
-      fontSize: 32,
-      color: '#FFFFFF',
-      fontWeight: '300',
     },
   });
