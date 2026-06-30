@@ -27,7 +27,7 @@ export const HomeScreen: React.FC = () => {
   } = useView();
 
   const { tasks, isLoading, error, groupedTasks, ranges } = useTasksByRanges(selectedTimeRanges);
-  const { toggleTaskCompleted, reorderTasks, moveTaskToDate } = useTaskStore();
+  const { toggleTaskCompleted, reorderTasks, moveTaskToDate, moveTaskToDateWithOrder } = useTaskStore();
   const [multiSelectMode, setMultiSelectMode] = useState(false);
 
   // 如果没有选择任何范围，默认选择当前时间单元
@@ -112,6 +112,21 @@ export const HomeScreen: React.FC = () => {
     await moveTaskToDate(taskId, newStart, newEnd);
   };
 
+  const handleMoveTaskToDateWithOrder = async (
+    taskId: string,
+    newStart: number,
+    newEnd: number | undefined,
+    taskIds: string[]
+  ) => {
+    const planTypeMap: Record<string, string> = {
+      day: 'daily',
+      week: 'weekly',
+      month: 'monthly',
+      year: 'yearly',
+    };
+    await moveTaskToDateWithOrder(taskId, newStart, newEnd, planTypeMap[currentView], taskIds);
+  };
+
   const handleTaskPress = (task: any) => {
     router.push({
       pathname: '/task-detail',
@@ -170,6 +185,7 @@ export const HomeScreen: React.FC = () => {
         onTaskPress={handleTaskPress}
         onReorder={handleReorder}
         onMoveTaskToDate={handleMoveTaskToDate}
+        onMoveTaskToDateWithOrder={handleMoveTaskToDateWithOrder}
         emptyMessage={getEmptyMessage()}
       />
 

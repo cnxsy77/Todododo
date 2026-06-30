@@ -14,6 +14,13 @@ interface TaskListProps {
   onTaskPress?: (task: Task) => void;
   onReorder?: (taskIds: string[]) => void;
   onMoveTaskToDate?: (taskId: string, newStart: number, newEnd?: number) => void;
+  // 跨日拖拽：同时更新任务日期与全局顺序，使 props 回流后顺序与本地一致
+  onMoveTaskToDateWithOrder?: (
+    taskId: string,
+    newStart: number,
+    newEnd: number | undefined,
+    taskIds: string[]
+  ) => void;
   emptyMessage?: string;
 }
 
@@ -35,17 +42,23 @@ export const TaskList: React.FC<TaskListProps> = ({
   onTaskPress,
   onReorder,
   onMoveTaskToDate,
+  onMoveTaskToDateWithOrder,
   emptyMessage = '暂无任务',
 }) => {
   const colors = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [data, setData] = useState(tasks);
-  // 用于多日期场景的本地数据状态（用于拖拽时立即更新 UI）
+  // 多日期拖拽：本地立即更新数据。DraggableFlatList 的 onDragEnd 在 spring 动画完成后
+  // 才回调，回调→store set→props 回流之间存在时序缺口：库内部 cell 已到 to 落点，但 data
+  // prop 仍为旧状态，于是错位/残影。onDragEnd 中立即把本地数据更新到与库落点一致，
+  // 并用 pendingSyncRef 阻止 props 回流期间覆盖（防回弹），100ms 后放行同步。
   const [localRenderData, setLocalRenderData] = useState<(DraggableTask | { id: string; isHeader: true; rangeStart: number; rangeEnd: number })[]>([]);
-  // 标记是否正在使用本地数据（拖拽后等待同步）
   const [isUsingLocalData, setIsUsingLocalData] = useState(false);
-  // 使用 ref 跟踪拖拽后待同步的状态（避免闭包问题）
   const pendingSyncRef = React.useRef(false);
+  // 无效落点（任务拖到首个日期头之前）时递增，强制 DraggableFlatList 重挂载，
+  // 让所有 cell 按正确 data 重新 layout 回原位。FlatList 对 key 相同仅引用变化的
+  // data 不会重 layout cell 位置，必须通过 key 变化重挂载才能纠正。
+  const [remountKey, setRemountKey] = useState(0);
 
   // 排序后的范围
   const sortedRanges = useMemo(() => {
@@ -92,34 +105,20 @@ export const TaskList: React.FC<TaskListProps> = ({
     return result;
   }, [groupedTasks, sortedRanges]);
 
-  // 当 props 数据变化时，重置本地数据标记并更新
-  // 但只在没有待同步的拖拽操作时才执行
+  // props 变化时同步本地数据；拖拽后 pendingSyncRef 期间禁止覆盖（防 props 回流回弹/残影）
   React.useEffect(() => {
-    // 如果有待同步的拖拽操作，不要覆盖本地数据
     if (pendingSyncRef.current) {
       return;
     }
-
     setData(tasks);
     setLocalRenderData(renderDataFromProps);
     setIsUsingLocalData(false);
   }, [tasks, renderDataFromProps]);
 
-  // 使用本地数据或 props 数据
+  // 拖拽后立即使用本地数据（与库落点一致）；否则用 props 派生数据
   const renderDataWithHeaders = isUsingLocalData ? localRenderData : renderDataFromProps;
 
   type RenderItem = DraggableTask | { id: string; isHeader: true; rangeStart: number; rangeEnd: number };
-
-  // 计算 sticky header 的索引
-  const stickyHeaderIndices = useMemo(() => {
-    const indices: number[] = [];
-    renderDataWithHeaders.forEach((item, index) => {
-      if ('isHeader' in item && item.isHeader) {
-        indices.push(index);
-      }
-    });
-    return indices;
-  }, [renderDataWithHeaders]);
 
   // 计算每个范围的任务数量（提前计算，避免重复计算）
   const rangeTaskCounts = useMemo(() => {
@@ -170,6 +169,7 @@ export const TaskList: React.FC<TaskListProps> = ({
     // 关键修复：只查找最近的头部来确定 toRangeStart，忽略中间的任务
     // 这是因为任务可能属于不同的日期范围，只有头部能准确标识范围边界
     let toRangeStart: number = fromRangeStart; // 默认使用源范围
+    let foundHeader = false;
 
     // 向前查找最近的头部
     for (let i = to - 1; i >= 0; i--) {
@@ -177,8 +177,26 @@ export const TaskList: React.FC<TaskListProps> = ({
       if ('isHeader' in item && item.isHeader) {
         // 找到头部，使用该头部的范围
         toRangeStart = item.rangeStart;
+        foundHeader = true;
         break;
       }
+    }
+
+    // 任务被拖到第一个日期头之前（列表最顶部，脱离任何日期分组）——无效落点。
+    // 库的 onDragEnd 已把 cell 物理移到 index 0，但 props.data 仍是拖拽前的正确顺序，
+    // key 序列未变，库不会自动 reset。这里切换到本地数据（新数组引用）强制 FlatList
+    // reconcile：把 cell 按 renderDataFromProps 的正确 key→index 重新 layout 回原位。
+    // pendingSyncRef 锁住，避免 props 回流覆盖；下一帧放行恢复 props 驱动。
+    if (!foundHeader) {
+      pendingSyncRef.current = true;
+      setLocalRenderData([...renderDataFromProps]);
+      setIsUsingLocalData(true);
+      // 递增 key 强制 DraggableFlatList 重挂载，按正确 data 重新 layout cell
+      setRemountKey((k) => k + 1);
+      setTimeout(() => {
+        pendingSyncRef.current = false;
+      }, 100);
+      return;
     }
 
     if (fromRangeStart !== toRangeStart) {
@@ -202,7 +220,7 @@ export const TaskList: React.FC<TaskListProps> = ({
 
         // 找到目标头部的位置
         const targetHeaderIndex = newLocalData.findIndex(
-          item => 'isHeader' in item && item.rangeStart === targetRange.start
+          (item) => 'isHeader' in item && item.rangeStart === targetRange.start
         );
 
         if (targetHeaderIndex >= 0) {
@@ -286,7 +304,23 @@ export const TaskList: React.FC<TaskListProps> = ({
         setIsUsingLocalData(true);
         pendingSyncRef.current = true;
 
-        onMoveTaskToDate?.(draggableDraggedItem.taskId, targetRange.start, targetRange.end);
+        // 同时改日期与顺序：把 newLocalData 的任务顺序同步到 store，使 props 回流后
+        // groupedTasks 的顺序与 localRenderData 一致，避免被 store 原顺序覆盖
+        // （如把任务2拖到29日任务1上方，回流后任务1不会反超到上面）。
+        const allTaskIds = newLocalData
+          .filter((item): item is DraggableTask => !('isHeader' in item))
+          .map((item) => item.taskId);
+        if (onMoveTaskToDateWithOrder) {
+          onMoveTaskToDateWithOrder(
+            draggableDraggedItem.taskId,
+            targetRange.start,
+            targetRange.end,
+            allTaskIds
+          );
+        } else {
+          onMoveTaskToDate?.(draggableDraggedItem.taskId, targetRange.start, targetRange.end);
+          onReorder?.(allTaskIds);
+        }
 
         setTimeout(() => {
           pendingSyncRef.current = false;
@@ -299,7 +333,7 @@ export const TaskList: React.FC<TaskListProps> = ({
         .map((item) => item.taskId);
       onReorder?.(taskIds);
     }
-  }, [sortedRanges, onMoveTaskToDate, onReorder]);
+  }, [sortedRanges, onMoveTaskToDate, onMoveTaskToDateWithOrder, onReorder]);
 
   // 渲染日期头（作为普通列表项）
   const renderHeaderItem = ({ item }: RenderItemParams<RenderItem>) => {
@@ -370,6 +404,7 @@ export const TaskList: React.FC<TaskListProps> = ({
   return (
     <View style={styles.container}>
       <DraggableFlatList
+        key={remountKey}
         data={renderDataWithHeaders}
         keyExtractor={(item) => item.id}
         renderItem={({ item, drag, isActive, getIndex }) => {
@@ -383,7 +418,6 @@ export const TaskList: React.FC<TaskListProps> = ({
         onDragEnd={handleDragEndWithHeaders}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={stickyHeaderIndices}
       />
     </View>
   );
