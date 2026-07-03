@@ -167,7 +167,10 @@ export const getTimeAxisUnits = (
         years.push(addYears(date, i));
       }
       years.forEach((year) => {
-        const timestamp = year.getTime();
+        // 归一化到年初 0 点，与 effect 中 new Date(y, 0, 1) 及
+        // getSelectedRanges 中 getYearStart 的 timestamp 保持一致，
+        // 否则年视图默认选中当年时 isSelected 判断不匹配。
+        const timestamp = getYearStart(year).getTime();
         units.push({
           id: `year-${timestamp}`,
           label: format(year, 'yyyy'),

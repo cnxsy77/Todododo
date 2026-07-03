@@ -36,3 +36,8 @@ export interface UpdateTaskInput {
   order?: number;
   parentTaskId?: string;
 }
+
+// 带子任务的任务（用于列表展示时组装层级）
+export interface TaskWithChildren extends Task {
+  children: Task[];
+}

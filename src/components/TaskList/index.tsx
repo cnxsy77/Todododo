@@ -1,13 +1,13 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import DraggableFlatList, { ScaleDecorator, DragEndParams, RenderItemParams } from 'react-native-draggable-flatlist';
-import type { Task, ViewType } from '../../types';
+import type { Task, TaskWithChildren, ViewType } from '../../types';
 import { TaskItem } from '../TaskItem';
 import { useTheme, ThemeColors } from '../../theme';
 
 interface TaskListProps {
-  tasks: Task[];
-  groupedTasks?: Map<number, Task[]>;
+  tasks: TaskWithChildren[];
+  groupedTasks?: Map<number, TaskWithChildren[]>;
   ranges?: { start: number; end: number }[];
   currentView?: ViewType;
   onToggleTask?: (id: string) => void;
@@ -24,13 +24,14 @@ interface TaskListProps {
   emptyMessage?: string;
 }
 
-// 用于拖拽的数据项
+// 用于拖拽的数据项（子任务不进入此列表，作为父 TaskItem 内嵌子视图渲染）
 interface DraggableTask {
   id: string;
   taskId: string;
   rangeStart: number;
   rangeEnd: number;
   task: Task;
+  children: Task[];
 }
 
 export const TaskList: React.FC<TaskListProps> = ({
@@ -91,7 +92,7 @@ export const TaskList: React.FC<TaskListProps> = ({
         rangeStart: range.start,
         rangeEnd: range.end,
       });
-      // 只在有任务时添加任务
+      // 只在有任务时添加任务（父任务，带子任务）
       rangeTasks.forEach((task) => {
         result.push({
           id: `task-${task.id}`,
@@ -99,6 +100,7 @@ export const TaskList: React.FC<TaskListProps> = ({
           rangeStart: range.start,
           rangeEnd: range.end,
           task,
+          children: task.children,
         });
       });
     });
@@ -120,12 +122,13 @@ export const TaskList: React.FC<TaskListProps> = ({
 
   type RenderItem = DraggableTask | { id: string; isHeader: true; rangeStart: number; rangeEnd: number };
 
-  // 计算每个范围的任务数量（提前计算，避免重复计算）
+  // 计算每个范围的任务数量（父+子总数，提前计算，避免重复计算）
   const rangeTaskCounts = useMemo(() => {
     const counts = new Map<number, number>();
     sortedRanges.forEach((range) => {
       const rangeTasks = groupedTasks?.get(range.start) || [];
-      counts.set(range.start, rangeTasks.length);
+      const total = rangeTasks.reduce((s, p) => s + 1 + p.children.length, 0);
+      counts.set(range.start, total);
     });
     return counts;
   }, [groupedTasks, sortedRanges]);
@@ -138,8 +141,11 @@ export const TaskList: React.FC<TaskListProps> = ({
       <ScaleDecorator activeScale={1.05}>
         <TaskItem
           task={(item as DraggableTask).task}
+          children={(item as DraggableTask).children}
           onToggle={onToggleTask}
           onPress={onTaskPress}
+          onToggleChild={onToggleTask}
+          onPressChild={onTaskPress}
           isDragging={isActive}
           drag={drag}
         />
@@ -369,9 +375,12 @@ export const TaskList: React.FC<TaskListProps> = ({
           renderItem={({ item, drag, isActive }) => (
             <ScaleDecorator activeScale={1.05}>
               <TaskItem
-                task={item as Task}
+                task={item}
+                children={item.children}
                 onToggle={onToggleTask}
                 onPress={onTaskPress}
+                onToggleChild={onToggleTask}
+                onPressChild={onTaskPress}
                 isDragging={isActive}
                 drag={drag}
               />

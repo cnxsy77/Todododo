@@ -7,7 +7,15 @@ import { MovableFab } from '../../components/MovableFab';
 import { useView, useTasksByRanges } from '../../hooks';
 import { useTaskStore } from '../../stores/taskStore';
 import { useTheme, ThemeColors } from '../../theme';
-import type { TimeAxisUnit } from '../../types';
+import type { TimeAxisUnit, ViewType, PlanType } from '../../types';
+
+// 视图 → 计划类型 映射：日视图只展示 daily，周视图只展示 weekly，依此类推。
+const VIEW_TO_PLAN_TYPE: Record<ViewType, PlanType> = {
+  day: 'daily',
+  week: 'weekly',
+  month: 'monthly',
+  year: 'yearly',
+};
 
 export const HomeScreen: React.FC = () => {
   const router = useRouter();
@@ -27,7 +35,10 @@ export const HomeScreen: React.FC = () => {
     previous,
   } = useView();
 
-  const { tasks, isLoading, error, groupedTasks, ranges } = useTasksByRanges(selectedTimeRanges);
+  const { tasks, isLoading, error, groupedTasks, ranges } = useTasksByRanges(
+    selectedTimeRanges,
+    VIEW_TO_PLAN_TYPE[currentView]
+  );
   const { toggleTaskCompleted, reorderTasks, moveTaskToDate, moveTaskToDateWithOrder } = useTaskStore();
   const [multiSelectMode, setMultiSelectMode] = useState(false);
 
@@ -95,14 +106,7 @@ export const HomeScreen: React.FC = () => {
   };
 
   const handleReorder = (taskIds: string[]) => {
-    // 转换 view 到 planType
-    const planTypeMap: Record<string, string> = {
-      day: 'daily',
-      week: 'weekly',
-      month: 'monthly',
-      year: 'yearly',
-    };
-    reorderTasks(planTypeMap[currentView], taskIds);
+    reorderTasks(VIEW_TO_PLAN_TYPE[currentView], taskIds);
   };
 
   const handleMoveTaskToDate = async (
@@ -119,13 +123,13 @@ export const HomeScreen: React.FC = () => {
     newEnd: number | undefined,
     taskIds: string[]
   ) => {
-    const planTypeMap: Record<string, string> = {
-      day: 'daily',
-      week: 'weekly',
-      month: 'monthly',
-      year: 'yearly',
-    };
-    await moveTaskToDateWithOrder(taskId, newStart, newEnd, planTypeMap[currentView], taskIds);
+    await moveTaskToDateWithOrder(
+      taskId,
+      newStart,
+      newEnd,
+      VIEW_TO_PLAN_TYPE[currentView],
+      taskIds
+    );
   };
 
   const handleTaskPress = (task: any) => {

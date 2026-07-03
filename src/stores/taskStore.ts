@@ -50,37 +50,62 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   updateTask: async (id: string, input: UpdateTaskInput) => {
     await queries.updateTask(id, input);
-    set((state) => ({
-      tasks: state.tasks.map((task) =>
-        task.id === id
-          ? {
+    set((state) => {
+      // 父任务的 planType/startDate/endDate 变更需级联到子任务
+      const cascaded: Partial<Pick<Task, 'planType' | 'startDate' | 'endDate'>> = {};
+      if (input.planType !== undefined) cascaded.planType = input.planType;
+      if (input.startDate !== undefined) cascaded.startDate = input.startDate;
+      if (input.endDate !== undefined) cascaded.endDate = input.endDate;
+      const hasCascade = Object.keys(cascaded).length > 0;
+      const now = Date.now();
+      return {
+        tasks: state.tasks.map((task) => {
+          if (task.id === id) {
+            return {
               ...task,
               ...input,
               isCompleted: input.isCompleted ?? task.isCompleted,
-              updatedAt: Date.now(),
-            }
-          : task
-      ),
-    }));
+              updatedAt: now,
+            };
+          }
+          // 子任务跟随父任务的 planType/startDate/endDate
+          if (hasCascade && task.parentTaskId === id) {
+            return { ...task, ...cascaded, updatedAt: now };
+          }
+          return task;
+        }),
+      };
+    });
   },
 
   deleteTask: async (id: string) => {
     await queries.deleteTask(id);
     set((state) => ({
-      tasks: state.tasks.filter((task) => task.id !== id),
+      // 同时移除该任务及其所有子任务
+      tasks: state.tasks.filter(
+        (task) => task.id !== id && task.parentTaskId !== id
+      ),
     }));
   },
 
   toggleTaskCompleted: async (id: string) => {
     const task = get().tasks.find((t) => t.id === id);
-    if (task) {
-      await queries.updateTask(id, { isCompleted: !task.isCompleted });
-      set((state) => ({
-        tasks: state.tasks.map((t) =>
-          t.id === id ? { ...t, isCompleted: !t.isCompleted } : t
-        ),
-      }));
+    if (!task) return;
+    const target = !task.isCompleted;
+    const hasChildren = get().tasks.some((t) => t.parentTaskId === id);
+    // 有子任务时级联完成；否则仅切换自身
+    if (hasChildren) {
+      await queries.setTaskAndChildrenCompleted(id, target);
+    } else {
+      await queries.updateTask(id, { isCompleted: target });
     }
+    set((state) => ({
+      tasks: state.tasks.map((t) =>
+        t.id === id || t.parentTaskId === id
+          ? { ...t, isCompleted: target }
+          : t
+      ),
+    }));
   },
 
   reorderTasks: async (planType: string, taskIds: string[]) => {
@@ -110,11 +135,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     // localRenderData + pendingSyncRef 负责，不依赖此处乐观更新。
     await queries.moveTaskToDate(id, newStart, newEnd);
     set((state) => ({
-      tasks: state.tasks.map((task) =>
-        task.id === id
-          ? { ...task, startDate: newStart, endDate: newEnd, updatedAt: Date.now() }
-          : task
-      ),
+      tasks: state.tasks.map((task) => {
+        if (task.id === id) {
+          return { ...task, startDate: newStart, endDate: newEnd, updatedAt: Date.now() };
+        }
+        // 子任务跟随父任务日期，保证父子始终同 range
+        if (task.parentTaskId === id) {
+          return { ...task, startDate: newStart, endDate: newEnd, updatedAt: Date.now() };
+        }
+        return task;
+      }),
     }));
   },
 
@@ -133,12 +163,13 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       await queries.moveTaskToDate(id, newStart, newEnd);
       await queries.updateTaskOrders(planType, taskIds);
       set((state) => {
-        // 先更新被拖任务的日期
-        const withDate = state.tasks.map((task) =>
-          task.id === id
-            ? { ...task, startDate: newStart, endDate: newEnd, updatedAt: Date.now() }
-            : task
-        );
+        // 先更新被拖任务及其子任务的日期
+        const withDate = state.tasks.map((task) => {
+          if (task.id === id || task.parentTaskId === id) {
+            return { ...task, startDate: newStart, endDate: newEnd, updatedAt: Date.now() };
+          }
+          return task;
+        });
         // 再按 taskIds 顺序重排（taskIds 中的按序，其余追加末尾）
         const taskMap = new Map(withDate.map((t) => [t.id, t]));
         const reordered = taskIds
