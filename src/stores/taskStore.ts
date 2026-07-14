@@ -55,7 +55,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       const cascaded: Partial<Pick<Task, 'planType' | 'startDate' | 'endDate'>> = {};
       if (input.planType !== undefined) cascaded.planType = input.planType;
       if (input.startDate !== undefined) cascaded.startDate = input.startDate;
-      if (input.endDate !== undefined) cascaded.endDate = input.endDate;
+      // endDate: null 表示清除，归一化为 undefined 以保持 Task.endDate 类型（number | undefined）
+      if (input.endDate !== undefined) cascaded.endDate = input.endDate ?? undefined;
       const hasCascade = Object.keys(cascaded).length > 0;
       const now = Date.now();
       return {
@@ -64,6 +65,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             return {
               ...task,
               ...input,
+              // ...input 会带入 endDate: null（清除），这里归一化为 undefined，保持 Task.endDate: number | undefined
+              endDate: input.endDate === undefined ? task.endDate : (input.endDate ?? undefined),
               isCompleted: input.isCompleted ?? task.isCompleted,
               updatedAt: now,
             };

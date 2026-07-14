@@ -33,6 +33,7 @@ export const TaskDetailScreen: React.FC = () => {
   const [description, setDescription] = useState('');
   const [planType, setPlanType] = useState<PlanType>('daily');
   const [startDate, setStartDate] = useState(Date.now());
+  const [endDate, setEndDate] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     if (existingTask) {
@@ -40,16 +41,26 @@ export const TaskDetailScreen: React.FC = () => {
       setDescription(existingTask.description || '');
       setPlanType(existingTask.planType);
       setStartDate(existingTask.startDate);
+      setEndDate(existingTask.endDate);
     } else if (parentTask) {
-      // 新建子任务：继承父的 planType/startDate
+      // 新建子任务：继承父的 planType/startDate/endDate
       setPlanType(parentTask.planType);
       setStartDate(parentTask.startDate);
+      setEndDate(parentTask.endDate);
+    } else {
+      // 新建独立任务：默认无结束日期
+      setEndDate(undefined);
     }
   }, [existingTask, parentTask]);
 
   const handleSave = async () => {
     if (!title.trim()) {
       Alert.alert('提示', '请输入任务标题');
+      return;
+    }
+
+    if (endDate !== undefined && endDate < startDate) {
+      Alert.alert('提示', '结束日期不能早于开始日期');
       return;
     }
 
@@ -60,14 +71,17 @@ export const TaskDetailScreen: React.FC = () => {
           description: description || undefined,
           planType,
           startDate,
+          // null 表示清除结束日期（updateTask 据此写 NULL）；undefined 才是"不更新"
+          endDate: endDate ?? null,
         });
       } else if (parentTask) {
-        // 创建子任务：planType/startDate 由 createTask 强制继承父值，这里仍传以保持一致
+        // 创建子任务：planType/startDate/endDate 由 createTask 强制继承父值，这里仍传以保持一致
         await addTask({
           title,
           description: description || undefined,
           planType: parentTask.planType,
           startDate: parentTask.startDate,
+          endDate: parentTask.endDate,
           parentTaskId: parentTask.id,
         });
       } else {
@@ -76,6 +90,7 @@ export const TaskDetailScreen: React.FC = () => {
           description: description || undefined,
           planType,
           startDate,
+          endDate,
         });
       }
       router.back();
@@ -248,6 +263,35 @@ export const TaskDetailScreen: React.FC = () => {
               value={startDate}
               onChange={setStartDate}
               label="选择开始日期"
+            />
+          )}
+        </View>
+
+        {/* 结束日期（可选，子任务继承父任务） */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>
+            结束日期（可选）{isChild ? '（继承自父任务）' : ''}
+          </Text>
+          {isChild ? (
+            <View style={styles.readonlyDate}>
+              <Text style={styles.readonlyDateText}>
+                {endDate
+                  ? new Date(endDate).toLocaleDateString('zh-CN', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      weekday: 'short',
+                    })
+                  : '未设置'}
+              </Text>
+            </View>
+          ) : (
+            <DatePicker
+              value={endDate}
+              onChange={setEndDate}
+              onClear={() => setEndDate(undefined)}
+              label="选择结束日期"
+              placeholder="未设置（单日任务可不填）"
             />
           )}
         </View>

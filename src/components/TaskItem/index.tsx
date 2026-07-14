@@ -3,6 +3,17 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import type { Task } from '../../types';
 import { useTheme, ThemeColors } from '../../theme';
 
+// 判断两个时间戳是否同一天（endDate 与 startDate 同日时不显示日期范围）
+const isSameDay = (a: number, b: number) => {
+  const da = new Date(a);
+  const db = new Date(b);
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  );
+};
+
 interface TaskItemProps {
   task: Task;
   children?: Task[];
@@ -111,6 +122,12 @@ export const TaskItem: React.FC<TaskItemProps> = ({
                 month: 'short',
                 day: 'numeric',
               })}
+              {task.endDate && !isSameDay(task.endDate, task.startDate)
+                ? ` - ${new Date(task.endDate).toLocaleDateString('zh-CN', {
+                    month: 'short',
+                    day: 'numeric',
+                  })}`
+                : ''}
             </Text>
             {hasChildren && (
               <Text style={styles.childrenCount}>

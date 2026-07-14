@@ -31,7 +31,7 @@ export interface UpdateTaskInput {
   description?: string;
   planType?: PlanType;
   startDate?: number;
-  endDate?: number;
+  endDate?: number | null; // null 表示清除结束日期
   isCompleted?: boolean;
   order?: number;
   parentTaskId?: string;

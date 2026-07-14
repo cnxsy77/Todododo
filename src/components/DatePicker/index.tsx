@@ -5,18 +5,28 @@ import { zhCN } from 'date-fns/locale';
 import { useTheme, ThemeColors } from '../../theme';
 
 interface DatePickerProps {
-  value: number;
+  value: number | undefined;
   onChange: (timestamp: number) => void;
+  onClear?: () => void;
   label?: string;
+  placeholder?: string;
 }
 
-export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, label = '选择日期' }) => {
+export const DatePicker: React.FC<DatePickerProps> = ({
+  value,
+  onChange,
+  onClear,
+  label = '选择日期',
+  placeholder = '选择日期',
+}) => {
   const colors = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [visible, setVisible] = useState(false);
   const listRef = useRef<FlatList>(null);
 
-  const currentDate = new Date(value);
+  const hasValue = value !== undefined;
+  // value 为 undefined 时以今天作为弹窗内默认定位，按钮显示占位文字
+  const currentDate = new Date(value ?? Date.now());
 
   // 生成前后各 180 天的日期列表
   const generateDays = () => {
@@ -67,7 +77,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, label =
   };
 
   const isSelected = (date: Date) => {
-    return format(date, 'yyyy-MM-dd') === format(currentDate, 'yyyy-MM-dd');
+    return hasValue && format(date, 'yyyy-MM-dd') === format(currentDate, 'yyyy-MM-dd');
   };
 
   const formatDateLabel = (date: Date) => {
@@ -88,15 +98,24 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, label =
 
   return (
     <>
-      <TouchableOpacity
-        style={styles.dateButton}
-        onPress={() => setVisible(true)}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.dateButtonText}>
-          {formatDateLabel(currentDate)} {formatWeekday(currentDate)}
-        </Text>
-      </TouchableOpacity>
+      <View style={styles.dateButtonRow}>
+        <TouchableOpacity
+          style={[styles.dateButton, onClear && hasValue && styles.dateButtonWithClear]}
+          onPress={() => setVisible(true)}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.dateButtonText, !hasValue && styles.dateButtonPlaceholder]}>
+            {hasValue
+              ? `${formatDateLabel(currentDate)} ${formatWeekday(currentDate)}`
+              : placeholder}
+          </Text>
+        </TouchableOpacity>
+        {onClear && hasValue && (
+          <TouchableOpacity style={styles.clearButton} onPress={onClear} activeOpacity={0.7}>
+            <Text style={styles.clearButtonText}>清除</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       <Modal
         visible={visible}
@@ -155,6 +174,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, label =
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
+    dateButtonRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
     dateButton: {
       backgroundColor: c.surface,
       borderWidth: 1,
@@ -163,9 +187,23 @@ const createStyles = (c: ThemeColors) =>
       paddingHorizontal: 16,
       paddingVertical: 12,
     },
+    dateButtonWithClear: {
+      flex: 1,
+    },
     dateButtonText: {
       fontSize: 16,
       color: c.text,
+    },
+    dateButtonPlaceholder: {
+      color: c.textTertiary,
+    },
+    clearButton: {
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+    },
+    clearButtonText: {
+      fontSize: 14,
+      color: c.textSecondary,
     },
     modalOverlay: {
       flex: 1,
