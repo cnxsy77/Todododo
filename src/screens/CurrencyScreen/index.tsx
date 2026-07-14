@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useCategoryStore } from '../../stores/categoryStore';
@@ -24,6 +24,57 @@ export const CurrencyScreen: React.FC = () => {
     return categories.find((c) => c.id === categoryId);
   };
 
+  // —— 筛选状态 ——
+  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
+  const [filterCategoryId, setFilterCategoryId] = useState<string | null>(null);
+  // null = 全部月份；{ year, month } 月份为 0-based
+  const [filterMonth, setFilterMonth] = useState<{ year: number; month: number } | null>(null);
+
+  // 类型筛选下可选分类：选了收入/支出时只列对应类型，避免选到无关分类
+  const availableCategories = useMemo(() => {
+    if (filterType === 'all') return categories;
+    return categories.filter((c) => c.type === filterType);
+  }, [categories, filterType]);
+
+  // 切换类型时，若当前选中的分类不属于新类型则清空，防止列表被筛空
+  const handleFilterTypeChange = (type: 'all' | 'income' | 'expense') => {
+    setFilterType(type);
+    if (filterCategoryId) {
+      const cat = categories.find((c) => c.id === filterCategoryId);
+      if (cat && type !== 'all' && cat.type !== type) {
+        setFilterCategoryId(null);
+      }
+    }
+  };
+
+  // 月份前后翻页；null 时从当前月起算
+  const shiftMonth = (delta: number) => {
+    setFilterMonth((prev) => {
+      const base = prev ?? { year: new Date().getFullYear(), month: new Date().getMonth() };
+      const d = new Date(base.year, base.month + delta, 1);
+      return { year: d.getFullYear(), month: d.getMonth() };
+    });
+  };
+
+  const clearAllFilters = () => {
+    setFilterType('all');
+    setFilterCategoryId(null);
+    setFilterMonth(null);
+  };
+
+  // 前端过滤：收支类型 / 分类 / 月份
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((t) => {
+      if (filterType !== 'all' && t.type !== filterType) return false;
+      if (filterCategoryId && t.category !== filterCategoryId) return false;
+      if (filterMonth) {
+        const d = new Date(t.date);
+        if (d.getFullYear() !== filterMonth.year || d.getMonth() !== filterMonth.month) return false;
+      }
+      return true;
+    });
+  }, [transactions, filterType, filterCategoryId, filterMonth]);
+
   const formatAmount = (amount: number, type: 'income' | 'expense') => {
     return `${type === 'income' ? '+' : '-'}¥${amount.toFixed(2)}`;
   };
@@ -43,8 +94,8 @@ export const CurrencyScreen: React.FC = () => {
     }
   };
 
-  // 按日期分组交易
-  const groupedTransactions = transactions.reduce((acc, t) => {
+  // 按日期分组（基于筛选后的交易）
+  const groupedTransactions = filteredTransactions.reduce((acc, t) => {
     const dateKey = new Date(t.date).toDateString();
     if (!acc[dateKey]) {
       acc[dateKey] = [];
@@ -91,13 +142,90 @@ export const CurrencyScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
+      {/* 筛选条 */}
+      <View style={styles.filterBar}>
+        {/* 月份 */}
+        <View style={styles.filterRow}>
+          <View style={styles.monthPicker}>
+            <TouchableOpacity onPress={() => shiftMonth(-1)} style={styles.monthArrow} activeOpacity={0.6}>
+              <Text style={styles.monthArrowText}>‹</Text>
+            </TouchableOpacity>
+            <Text style={styles.monthLabel}>
+              {filterMonth ? `${filterMonth.year}年${filterMonth.month + 1}月` : '全部交易'}
+            </Text>
+            <TouchableOpacity onPress={() => shiftMonth(1)} style={styles.monthArrow} activeOpacity={0.6}>
+              <Text style={styles.monthArrowText}>›</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={[styles.chip, filterMonth === null && styles.chipActive]}
+            onPress={() => setFilterMonth(null)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.chipText, filterMonth === null && styles.chipTextActive]}>全部月份</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 收支类型 */}
+        <View style={styles.filterRow}>
+          {([
+            { key: 'all', label: '全部' },
+            { key: 'income', label: '收入' },
+            { key: 'expense', label: '支出' },
+          ] as const).map((t) => (
+            <TouchableOpacity
+              key={t.key}
+              style={[styles.chip, filterType === t.key && styles.chipActive]}
+              onPress={() => handleFilterTypeChange(t.key)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.chipText, filterType === t.key && styles.chipTextActive]}>
+                {t.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* 分类（横向滚动） */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} nestedScrollEnabled style={styles.categoryScroll}>
+          <TouchableOpacity
+            style={[styles.chip, filterCategoryId === null && styles.chipActive]}
+            onPress={() => setFilterCategoryId(null)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.chipText, filterCategoryId === null && styles.chipTextActive]}>
+              全部分类
+            </Text>
+          </TouchableOpacity>
+          {availableCategories.map((c) => (
+            <TouchableOpacity
+              key={c.id}
+              style={[styles.chip, filterCategoryId === c.id && styles.chipActive]}
+              onPress={() => setFilterCategoryId(c.id)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.chipText, filterCategoryId === c.id && styles.chipTextActive]}>
+                {c.icon} {c.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       {/* 交易列表 */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>交易记录</Text>
 
         {Object.keys(groupedTransactions).length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>暂无交易记录</Text>
+            <Text style={styles.emptyText}>
+              {transactions.length === 0 ? '暂无交易记录' : '没有符合条件的交易'}
+            </Text>
+            {transactions.length > 0 && (
+              <TouchableOpacity onPress={clearAllFilters} style={styles.clearFilterButton} activeOpacity={0.7}>
+                <Text style={styles.clearFilterText}>清除筛选</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           Object.entries(groupedTransactions).map(([dateKey, items]) => (
@@ -222,6 +350,79 @@ const createStyles = (c: ThemeColors) =>
     entryText: {
       fontSize: 14,
       color: c.text,
+      fontWeight: '500',
+    },
+    filterBar: {
+      paddingHorizontal: 16,
+      marginBottom: 8,
+      gap: 8,
+    },
+    filterRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    monthPicker: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      borderRadius: 8,
+      paddingHorizontal: 4,
+      paddingVertical: 2,
+    },
+    monthArrow: {
+      width: 32,
+      height: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    monthArrowText: {
+      fontSize: 22,
+      color: c.textSecondary,
+      lineHeight: 26,
+    },
+    monthLabel: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: c.text,
+      minWidth: 96,
+      textAlign: 'center',
+    },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 16,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    chipActive: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    chipText: {
+      fontSize: 13,
+      color: c.textSecondary,
+    },
+    chipTextActive: {
+      color: '#FFFFFF',
+      fontWeight: '500',
+    },
+    categoryScroll: {
+      marginHorizontal: -16,
+      paddingHorizontal: 16,
+    },
+    clearFilterButton: {
+      marginTop: 12,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: c.primary,
+    },
+    clearFilterText: {
+      fontSize: 14,
+      color: c.primary,
       fontWeight: '500',
     },
     section: {
