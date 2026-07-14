@@ -21,6 +21,8 @@ interface TaskListProps {
     newEnd: number | undefined,
     taskIds: string[]
   ) => void;
+  // 是否允许拖拽排序/跨日移动；筛选态应禁用（只看到部分任务，重排会破坏全局顺序）
+  dragEnabled?: boolean;
   emptyMessage?: string;
 }
 
@@ -44,6 +46,7 @@ export const TaskList: React.FC<TaskListProps> = ({
   onReorder,
   onMoveTaskToDate,
   onMoveTaskToDateWithOrder,
+  dragEnabled = true,
   emptyMessage = '暂无任务',
 }) => {
   const colors = useTheme();
@@ -147,7 +150,7 @@ export const TaskList: React.FC<TaskListProps> = ({
           onToggleChild={onToggleTask}
           onPressChild={onTaskPress}
           isDragging={isActive}
-          drag={drag}
+          drag={dragEnabled ? drag : undefined}
         />
       </ScaleDecorator>
     );
@@ -382,7 +385,7 @@ export const TaskList: React.FC<TaskListProps> = ({
                 onToggleChild={onToggleTask}
                 onPressChild={onTaskPress}
                 isDragging={isActive}
-                drag={drag}
+                drag={dragEnabled ? drag : undefined}
               />
             </ScaleDecorator>
           )}

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { TimeAxis } from '../../components/TimeAxis';
 import { TaskList } from '../../components/TaskList';
@@ -7,7 +7,7 @@ import { MovableFab } from '../../components/MovableFab';
 import { useView, useTasksByRanges } from '../../hooks';
 import { useTaskStore } from '../../stores/taskStore';
 import { useTheme, ThemeColors } from '../../theme';
-import type { TimeAxisUnit, ViewType, PlanType } from '../../types';
+import type { TimeAxisUnit, ViewType, PlanType, TaskWithChildren } from '../../types';
 
 // 视图 → 计划类型 映射：日视图只展示 daily，周视图只展示 weekly，依此类推。
 const VIEW_TO_PLAN_TYPE: Record<ViewType, PlanType> = {
@@ -41,6 +41,31 @@ export const HomeScreen: React.FC = () => {
   );
   const { toggleTaskCompleted, reorderTasks, moveTaskToDate, moveTaskToDateWithOrder } = useTaskStore();
   const [multiSelectMode, setMultiSelectMode] = useState(false);
+
+  // 搜索与完成状态筛选（仅作用于父任务；筛选态禁用拖拽，避免部分可见任务重排破坏全局顺序）
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const isFiltering = searchKeyword.trim() !== '' || statusFilter !== 'all';
+
+  const matchTask = useCallback((t: TaskWithChildren) => {
+    const kw = searchKeyword.trim().toLowerCase();
+    if (kw) {
+      const inTitle = t.title.toLowerCase().includes(kw);
+      const inDesc = t.description?.toLowerCase().includes(kw) ?? false;
+      if (!inTitle && !inDesc) return false;
+    }
+    if (statusFilter === 'active' && t.isCompleted) return false;
+    if (statusFilter === 'completed' && !t.isCompleted) return false;
+    return true;
+  }, [searchKeyword, statusFilter]);
+
+  const filteredTasks = useMemo(() => tasks.filter(matchTask), [tasks, matchTask]);
+  const filteredGrouped = useMemo(() => {
+    if (!isFiltering) return groupedTasks;
+    const map = new Map<number, TaskWithChildren[]>();
+    groupedTasks.forEach((arr, key) => map.set(key, arr.filter(matchTask)));
+    return map;
+  }, [groupedTasks, matchTask, isFiltering]);
 
   // 如果没有选择任何范围，默认选择当前时间单元
   useEffect(() => {
@@ -140,6 +165,7 @@ export const HomeScreen: React.FC = () => {
   };
 
   const getEmptyMessage = () => {
+    if (isFiltering) return '没有符合条件的任务';
     const labels = {
       day: '今日暂无任务',
       week: '本周暂无任务',
@@ -160,6 +186,43 @@ export const HomeScreen: React.FC = () => {
         onNext={next}
         onSetView={setView}
       />
+
+      {/* 搜索与完成状态筛选 */}
+      <View style={styles.searchBar}>
+        <View style={styles.searchInputWrap}>
+          <Text style={styles.searchIcon}>🔍</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="搜索任务标题或描述"
+            placeholderTextColor={colors.textTertiary}
+            value={searchKeyword}
+            onChangeText={setSearchKeyword}
+          />
+          {searchKeyword !== '' && (
+            <TouchableOpacity onPress={() => setSearchKeyword('')} style={styles.searchClear} activeOpacity={0.7}>
+              <Text style={styles.searchClearText}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={styles.statusFilterRow}>
+          {([
+            { key: 'all', label: '全部' },
+            { key: 'active', label: '未完成' },
+            { key: 'completed', label: '已完成' },
+          ] as const).map((s) => (
+            <TouchableOpacity
+              key={s.key}
+              style={[styles.statusChip, statusFilter === s.key && styles.statusChipActive]}
+              onPress={() => setStatusFilter(s.key)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.statusChipText, statusFilter === s.key && styles.statusChipTextActive]}>
+                {s.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
 
       {/* 多选模式提示 */}
       {selectedRanges.length > 1 && (
@@ -182,8 +245,8 @@ export const HomeScreen: React.FC = () => {
 
       {/* 任务列表 */}
       <TaskList
-        tasks={tasks}
-        groupedTasks={groupedTasks}
+        tasks={filteredTasks}
+        groupedTasks={filteredGrouped}
         ranges={ranges}
         currentView={currentView}
         onToggleTask={handleToggleTask}
@@ -192,6 +255,7 @@ export const HomeScreen: React.FC = () => {
         onMoveTaskToDate={handleMoveTaskToDate}
         onMoveTaskToDateWithOrder={handleMoveTaskToDateWithOrder}
         emptyMessage={getEmptyMessage()}
+        dragEnabled={!isFiltering}
       />
 
       {/* 添加任务按钮（可拖动） */}
@@ -208,6 +272,62 @@ const createStyles = (c: ThemeColors) =>
     container: {
       flex: 1,
       backgroundColor: c.background,
+    },
+    searchBar: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      gap: 8,
+    },
+    searchInputWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    searchIcon: {
+      fontSize: 14,
+      marginRight: 8,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 14,
+      color: c.text,
+      paddingVertical: 8,
+    },
+    searchClear: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    searchClearText: {
+      fontSize: 14,
+      color: c.textTertiary,
+    },
+    statusFilterRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    statusChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 16,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    statusChipActive: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    statusChipText: {
+      fontSize: 13,
+      color: c.textSecondary,
+    },
+    statusChipTextActive: {
+      color: '#FFFFFF',
+      fontWeight: '500',
     },
     multiSelectBar: {
       flexDirection: 'row',
