@@ -5,7 +5,7 @@ import { useTransactionStore } from '../../stores/transactionStore';
 import { useCategoryStore } from '../../stores/categoryStore';
 import { Input, Button } from '../../components/common';
 import { useTheme, ThemeColors } from '../../theme';
-import type { TransactionType } from '../../types';
+import type { TransactionType, Category } from '../../types';
 
 const PRESET_ICONS = ['💰', '📈', '💼', '🎁', '💵', '🍜', '🚗', '🛒', '🎮', '💊', '📚', '🏠', '📱', '📦', '✈️', '👕', '⚽', '🎵', '☕', '🐾', '💡', '🔧'];
 const PRESET_COLORS = ['#4CAF50', '#8BC34A', '#FFC107', '#F44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3', '#03A9F4', '#00BCD4', '#009688', '#FF9800', '#795548'];
@@ -15,7 +15,7 @@ export const TransactionDetailScreen: React.FC = () => {
   const router = useRouter();
   const navigation = useNavigation();
   const { transactions, addTransaction, updateTransaction, deleteTransaction } = useTransactionStore();
-  const { categories, loadCategoriesByType, addCategory } = useCategoryStore();
+  const { categories, loadCategoriesByType, addCategory, updateCategory } = useCategoryStore();
   const colors = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -30,8 +30,9 @@ export const TransactionDetailScreen: React.FC = () => {
   const [note, setNote] = useState('');
   const [date, setDate] = useState(Date.now());
 
-  // 新建分类 modal
+  // 分类 modal（新建/编辑共用）
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryIcon, setNewCategoryIcon] = useState(PRESET_ICONS[0]);
   const [newCategoryColor, setNewCategoryColor] = useState(PRESET_COLORS[0]);
@@ -113,34 +114,57 @@ export const TransactionDetailScreen: React.FC = () => {
     ]);
   };
 
-  const handleCreateCategory = async () => {
+  const closeCategoryModal = () => {
+    setCategoryModalVisible(false);
+    setEditingCategory(null);
+    setNewCategoryName('');
+    setNewCategoryIcon(PRESET_ICONS[0]);
+    setNewCategoryColor(PRESET_COLORS[0]);
+  };
+
+  const openCategoryModal = () => {
+    setEditingCategory(null);
+    setNewCategoryName('');
+    setNewCategoryIcon(PRESET_ICONS[0]);
+    setNewCategoryColor(PRESET_COLORS[0]);
+    setCategoryModalVisible(true);
+  };
+
+  // 长按分类卡片：进入编辑模式，预填当前分类数据
+  const openEditCategoryModal = (category: Category) => {
+    setEditingCategory(category);
+    setNewCategoryName(category.name);
+    setNewCategoryIcon(category.icon);
+    setNewCategoryColor(category.color);
+    setCategoryModalVisible(true);
+  };
+
+  const handleSaveCategory = async () => {
     const name = newCategoryName.trim();
     if (!name) {
       Alert.alert('提示', '请输入分类名称');
       return;
     }
     try {
-      const created = await addCategory({
-        name,
-        type: transactionType,
-        icon: newCategoryIcon,
-        color: newCategoryColor,
-      });
-      setSelectedCategoryId(created.id);
-      setCategoryModalVisible(false);
-      setNewCategoryName('');
-      setNewCategoryIcon(PRESET_ICONS[0]);
-      setNewCategoryColor(PRESET_COLORS[0]);
+      if (editingCategory) {
+        await updateCategory(editingCategory.id, {
+          name,
+          icon: newCategoryIcon,
+          color: newCategoryColor,
+        });
+      } else {
+        const created = await addCategory({
+          name,
+          type: transactionType,
+          icon: newCategoryIcon,
+          color: newCategoryColor,
+        });
+        setSelectedCategoryId(created.id);
+      }
+      closeCategoryModal();
     } catch (error) {
-      Alert.alert('错误', '创建分类失败');
+      Alert.alert('错误', editingCategory ? '更新分类失败' : '创建分类失败');
     }
-  };
-
-  const openCategoryModal = () => {
-    setNewCategoryIcon(PRESET_ICONS[0]);
-    setNewCategoryColor(PRESET_COLORS[0]);
-    setNewCategoryName('');
-    setCategoryModalVisible(true);
   };
 
   return (
@@ -192,6 +216,7 @@ export const TransactionDetailScreen: React.FC = () => {
         {/* 分类选择 */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>选择分类</Text>
+          <Text style={styles.sectionHint}>长按分类可编辑名称、图标、颜色</Text>
           <View style={styles.categoryGrid}>
             {filteredCategories.map((category) => (
               <TouchableOpacity
@@ -201,6 +226,7 @@ export const TransactionDetailScreen: React.FC = () => {
                   selectedCategoryId === category.id && styles.categoryItemSelected,
                 ]}
                 onPress={() => setSelectedCategoryId(category.id)}
+                onLongPress={() => openEditCategoryModal(category)}
                 activeOpacity={0.7}
               >
                 <Text style={styles.categoryIcon}>{category.icon}</Text>
@@ -254,13 +280,13 @@ export const TransactionDetailScreen: React.FC = () => {
         visible={categoryModalVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setCategoryModalVisible(false)}
+        onRequestClose={closeCategoryModal}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>新建{transactionType === 'income' ? '收入' : '支出'}分类</Text>
-              <TouchableOpacity onPress={() => setCategoryModalVisible(false)}>
+              <Text style={styles.modalTitle}>{editingCategory ? '编辑' : '新建'}{transactionType === 'income' ? '收入' : '支出'}分类</Text>
+              <TouchableOpacity onPress={closeCategoryModal}>
                 <Text style={styles.closeButton}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -310,9 +336,9 @@ export const TransactionDetailScreen: React.FC = () => {
             </ScrollView>
 
             <View style={styles.modalActions}>
-              <Button title="取消" onPress={() => setCategoryModalVisible(false)} variant="secondary" />
+              <Button title="取消" onPress={closeCategoryModal} variant="secondary" />
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Button title="创建" onPress={handleCreateCategory} variant="primary" />
+                <Button title={editingCategory ? '保存' : '创建'} onPress={handleSaveCategory} variant="primary" />
               </View>
             </View>
           </View>
@@ -384,6 +410,12 @@ const createStyles = (c: ThemeColors) =>
       fontSize: 14,
       fontWeight: '500',
       color: c.text,
+      marginBottom: 12,
+    },
+    sectionHint: {
+      fontSize: 12,
+      color: c.textTertiary,
+      marginTop: -6,
       marginBottom: 12,
     },
     categoryGrid: {
