@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import type { Task } from '../../types';
 import { useTheme, ThemeColors } from '../../theme';
+import { stripMarkdown } from '../../utils/markdown';
 
 // 判断两个时间戳是否同一天（endDate 与 startDate 同日时不显示日期范围）
 const isSameDay = (a: number, b: number) => {
@@ -109,7 +110,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
 
           {task.description && (
             <Text style={styles.description} numberOfLines={1}>
-              {task.description}
+              {stripMarkdown(task.description)}
             </Text>
           )}
 

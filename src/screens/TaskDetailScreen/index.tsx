@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { Input, Button } from '../../components/common';
 import { DatePicker } from '../../components/DatePicker';
 import { ReminderPicker } from '../../components/ReminderPicker';
+import { MarkdownRenderer } from '../../components/MarkdownRenderer';
+import { MarkdownToolbar } from '../../components/MarkdownToolbar';
 import { ensureNotificationPermissions } from '../../services/notificationService';
 import { useTaskStore } from '../../stores/taskStore';
 import { useTheme, ThemeColors } from '../../theme';
@@ -37,6 +39,16 @@ export const TaskDetailScreen: React.FC = () => {
   const [startDate, setStartDate] = useState(Date.now());
   const [endDate, setEndDate] = useState<number | undefined>(undefined);
   const [reminderAt, setReminderAt] = useState<number | undefined>(undefined);
+  // 描述编辑/预览切换 + 光标位置跟踪（工具栏插入语法用）
+  const [descMode, setDescMode] = useState<'edit' | 'preview'>('edit');
+  const [descSelection, setDescSelection] = useState<{ start: number; end: number } | undefined>(undefined);
+  const descSelectionRef = useRef({ start: 0, end: 0 });
+
+  // 工具栏插入后把光标移到指定位置：一次性受控 selection，下一 tick 清空避免干扰输入
+  const applySelection = (start: number, end: number) => {
+    setDescSelection({ start, end });
+    setTimeout(() => setDescSelection(undefined), 0);
+  };
 
   useEffect(() => {
     if (existingTask) {
@@ -218,16 +230,58 @@ export const TaskDetailScreen: React.FC = () => {
           autoFocus={!existingTask}
         />
 
-        {/* 描述 */}
-        <Input
-          label="描述（可选）"
-          placeholder="请输入任务描述"
-          value={description}
-          onChangeText={setDescription}
-          multiline
-          numberOfLines={4}
-          style={styles.textArea}
-        />
+        {/* 描述（支持 Markdown） */}
+        <View style={styles.section}>
+          <View style={styles.descHeader}>
+            <Text style={[styles.sectionLabel, { marginBottom: 0 }]}>描述（可选）</Text>
+            <View style={styles.descTabs}>
+              <TouchableOpacity
+                style={[styles.descTab, descMode === 'edit' && styles.descTabActive]}
+                onPress={() => setDescMode('edit')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.descTabText, descMode === 'edit' && styles.descTabTextActive]}>编辑</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.descTab, descMode === 'preview' && styles.descTabActive]}
+                onPress={() => setDescMode('preview')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.descTabText, descMode === 'preview' && styles.descTabTextActive]}>预览</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          {descMode === 'edit' ? (
+            <>
+              <MarkdownToolbar
+                value={description}
+                onChange={setDescription}
+                selectionRef={descSelectionRef}
+                applySelection={applySelection}
+              />
+              <Input
+                placeholder="支持 Markdown：# 标题 **粗体** - 列表"
+                value={description}
+                onChangeText={setDescription}
+                onSelectionChange={(e) => {
+                  descSelectionRef.current = e.nativeEvent.selection;
+                }}
+                selection={descSelection}
+                multiline
+                numberOfLines={4}
+                style={styles.textArea}
+              />
+            </>
+          ) : (
+            <View style={styles.previewWrap}>
+              {description.trim() ? (
+                <MarkdownRenderer md={description} />
+              ) : (
+                <Text style={styles.previewEmpty}>暂无描述内容</Text>
+              )}
+            </View>
+          )}
+        </View>
 
         {/* 计划类型 */}
         <View style={styles.section}>
@@ -416,6 +470,45 @@ const createStyles = (c: ThemeColors) =>
     textArea: {
       minHeight: 100,
       textAlignVertical: 'top',
+    },
+    descHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    descTabs: {
+      flexDirection: 'row',
+      gap: 6,
+    },
+    descTab: {
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 6,
+      backgroundColor: c.surfaceSecondary,
+    },
+    descTabActive: {
+      backgroundColor: c.primary,
+    },
+    descTabText: {
+      fontSize: 13,
+      color: c.textSecondary,
+    },
+    descTabTextActive: {
+      color: '#FFFFFF',
+      fontWeight: '500',
+    },
+    previewWrap: {
+      minHeight: 100,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      padding: 16,
+    },
+    previewEmpty: {
+      fontSize: 14,
+      color: c.textTertiary,
     },
     section: {
       marginBottom: 24,
