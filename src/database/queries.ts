@@ -1,6 +1,6 @@
 import { getDatabase } from './schema';
 import type { SQLiteDatabase } from './schema';
-import type { Task, CreateTaskInput, UpdateTaskInput } from '../types';
+import type { Task, CreateTaskInput, UpdateTaskInput, PlanType } from '../types';
 import { uuid } from '../utils/uuid';
 
 // 行映射：DB 列(snake_case) → Task(camelCase)
@@ -19,11 +19,33 @@ const mapRow = (row: any): Task => ({
   updatedAt: row.updated_at,
 });
 
-// 获取所有任务
+// 获取所有任务（仅供导出等需要全量数据的场景）
 export const getAllTasks = async (): Promise<Task[]> => {
   const db = await getDatabase();
   const rows = await db.getAllAsync<any>(
     'SELECT * FROM tasks ORDER BY sort_order ASC'
+  );
+  return rows.map(mapRow);
+};
+
+// 按计划类型与日期范围精确加载任务（首页视图按需查询，替代全量加载）。
+// 父子任务同 range（createTask/moveTask/updateTask 强制级联 startDate），
+// 故按 startDate 命中即可同时覆盖父子。
+export const getTasksByPlanTypeAndRanges = async (
+  planType: PlanType,
+  ranges: { start: number; end: number }[]
+): Promise<Task[]> => {
+  if (ranges.length === 0) return [];
+  const db = await getDatabase();
+  // 每个 range 一段 BETWEEN，OR 连接
+  const clauses = ranges.map(() => 'start_date BETWEEN ? AND ?').join(' OR ');
+  const params: (string | number)[] = [planType];
+  ranges.forEach((r) => {
+    params.push(r.start, r.end);
+  });
+  const rows = await db.getAllAsync<any>(
+    `SELECT * FROM tasks WHERE plan_type = ? AND (${clauses}) ORDER BY sort_order ASC`,
+    params
   );
   return rows.map(mapRow);
 };

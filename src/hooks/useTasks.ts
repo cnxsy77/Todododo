@@ -65,10 +65,10 @@ export const useTasksByRanges = (
 ) => {
   const { tasks, isLoading, error, loadTasks } = useTaskStore();
 
-  // 只在组件挂载时加载一次任务
+  // range/planType 变化时按需查库（替代全量加载）：切换视图并加载当前范围任务
   useEffect(() => {
-    loadTasks();
-  }, []);
+    loadTasks(planType, ranges);
+  }, [planType, JSON.stringify(ranges), loadTasks]);
 
   // 使用 useMemo 缓存过滤结果（同步派生）
   const memoizedFilteredTasks = useMemo(

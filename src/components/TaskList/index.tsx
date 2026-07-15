@@ -395,6 +395,10 @@ export const TaskList: React.FC<TaskListProps> = ({
           }}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          updateCellsBatchingPeriod={50}
+          windowSize={7}
         />
       </View>
     );
@@ -430,6 +434,10 @@ export const TaskList: React.FC<TaskListProps> = ({
         onDragEnd={handleDragEndWithHeaders}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        updateCellsBatchingPeriod={50}
+        windowSize={7}
       />
     </View>
   );

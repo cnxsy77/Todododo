@@ -1,15 +1,29 @@
 import { create } from 'zustand';
-import type { Task, CreateTaskInput, UpdateTaskInput } from '../types';
+import type { Task, CreateTaskInput, UpdateTaskInput, PlanType } from '../types';
 import * as queries from '../database/queries';
 import { scheduleTaskReminder, cancelTaskReminder } from '../services/notificationService';
 
+// 判断任务是否属当前视图（planType 匹配 + startDate 落在某一 range 内）
+const taskInView = (
+  task: { planType: PlanType; startDate: number },
+  planType: PlanType | null,
+  ranges: { start: number; end: number }[] | null
+): boolean => {
+  if (!planType || !ranges || ranges.length === 0) return false;
+  if (task.planType !== planType) return false;
+  return ranges.some((r) => task.startDate >= r.start && task.startDate <= r.end);
+};
+
 interface TaskState {
   tasks: Task[];
+  // 当前视图范围：store 仅持有属此视图的任务，写操作据此加入/移除
+  currentPlanType: PlanType | null;
+  currentRanges: { start: number; end: number }[] | null;
   isLoading: boolean;
   error: string | null;
 
   // Actions
-  loadTasks: () => Promise<void>;
+  loadTasks: (planType?: PlanType, ranges?: { start: number; end: number }[]) => Promise<void>;
   addTask: (input: CreateTaskInput) => Promise<Task>;
   updateTask: (id: string, input: UpdateTaskInput) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
@@ -30,14 +44,23 @@ interface TaskState {
 
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
+  currentPlanType: null,
+  currentRanges: null,
   isLoading: false,
   error: null,
 
-  loadTasks: async () => {
+  // 传参则切换到该视图并加载；无参则用上次视图参数重新加载（供 import 后刷新）
+  loadTasks: async (planType?: PlanType, ranges?: { start: number; end: number }[]) => {
+    const pt = planType ?? get().currentPlanType;
+    const rg = ranges ?? get().currentRanges;
+    if (!pt || !rg) {
+      set({ tasks: [], isLoading: false });
+      return;
+    }
     set({ isLoading: true, error: null });
     try {
-      const tasks = await queries.getAllTasks();
-      set({ tasks, isLoading: false });
+      const tasks = await queries.getTasksByPlanTypeAndRanges(pt, rg);
+      set({ tasks, currentPlanType: pt, currentRanges: rg, isLoading: false });
     } catch (err) {
       set({ error: (err as Error).message, isLoading: false });
     }
@@ -45,7 +68,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   addTask: async (input: CreateTaskInput) => {
     const newTask = await queries.createTask(input);
-    set((state) => ({ tasks: [...state.tasks, newTask] }));
+    // 仅当新任务属当前视图时加入内存（含子任务，父子同 range）
+    const { currentPlanType, currentRanges } = get();
+    if (taskInView(newTask, currentPlanType, currentRanges)) {
+      set((state) => ({ tasks: [...state.tasks, newTask] }));
+    }
     if (newTask.reminderAt) {
       await scheduleTaskReminder(newTask.id, newTask.title, newTask.reminderAt);
     }
@@ -55,6 +82,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   updateTask: async (id: string, input: UpdateTaskInput) => {
     await queries.updateTask(id, input);
     set((state) => {
+      const { currentPlanType, currentRanges } = state;
       // 父任务的 planType/startDate/endDate 变更需级联到子任务
       const cascaded: Partial<Pick<Task, 'planType' | 'startDate' | 'endDate'>> = {};
       if (input.planType !== undefined) cascaded.planType = input.planType;
@@ -63,8 +91,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       if (input.endDate !== undefined) cascaded.endDate = input.endDate ?? undefined;
       const hasCascade = Object.keys(cascaded).length > 0;
       const now = Date.now();
-      return {
-        tasks: state.tasks.map((task) => {
+      const updated = state.tasks
+        .map((task) => {
           if (task.id === id) {
             return {
               ...task,
@@ -82,8 +110,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             return { ...task, ...cascaded, updatedAt: now };
           }
           return task;
-        }),
-      };
+        })
+        // 更新后离开当前视图的任务（如改了日期/planType 到视图外）从内存移除
+        .filter((task) => taskInView(task, currentPlanType, currentRanges));
+      return { tasks: updated };
     });
 
     // 提醒变更：取消旧的，按新值重新调度（null 清除则仅取消）
@@ -163,18 +193,22 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     // 避免同帧竞争导致 cell translateY 残留。拖拽后的即时视觉由 TaskList 的
     // localRenderData + pendingSyncRef 负责，不依赖此处乐观更新。
     await queries.moveTaskToDate(id, newStart, newEnd);
-    set((state) => ({
-      tasks: state.tasks.map((task) => {
-        if (task.id === id) {
-          return { ...task, startDate: newStart, endDate: newEnd, updatedAt: Date.now() };
-        }
-        // 子任务跟随父任务日期，保证父子始终同 range
-        if (task.parentTaskId === id) {
-          return { ...task, startDate: newStart, endDate: newEnd, updatedAt: Date.now() };
-        }
-        return task;
-      }),
-    }));
+    set((state) => {
+      const { currentPlanType, currentRanges } = state;
+      const updated = state.tasks
+        .map((task) => {
+          if (task.id === id) {
+            return { ...task, startDate: newStart, endDate: newEnd, updatedAt: Date.now() };
+          }
+          // 子任务跟随父任务日期，保证父子始终同 range
+          if (task.parentTaskId === id) {
+            return { ...task, startDate: newStart, endDate: newEnd, updatedAt: Date.now() };
+          }
+          return task;
+        })
+        .filter((task) => taskInView(task, currentPlanType, currentRanges));
+      return { tasks: updated };
+    });
   },
 
   moveTaskToDateWithOrder: async (
@@ -192,13 +226,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       await queries.moveTaskToDate(id, newStart, newEnd);
       await queries.updateTaskOrders(planType, taskIds);
       set((state) => {
-        // 先更新被拖任务及其子任务的日期
-        const withDate = state.tasks.map((task) => {
-          if (task.id === id || task.parentTaskId === id) {
-            return { ...task, startDate: newStart, endDate: newEnd, updatedAt: Date.now() };
-          }
-          return task;
-        });
+        const { currentPlanType, currentRanges } = state;
+        // 先更新被拖任务及其子任务的日期，并移除离开当前视图的任务
+        const withDate = state.tasks
+          .map((task) => {
+            if (task.id === id || task.parentTaskId === id) {
+              return { ...task, startDate: newStart, endDate: newEnd, updatedAt: Date.now() };
+            }
+            return task;
+          })
+          .filter((task) => taskInView(task, currentPlanType, currentRanges));
         // 再按 taskIds 顺序重排（taskIds 中的按序，其余追加末尾）
         const taskMap = new Map(withDate.map((t) => [t.id, t]));
         const reordered = taskIds
