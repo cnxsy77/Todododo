@@ -8,6 +8,7 @@ export interface Task {
   planType: PlanType;
   startDate: number; // 时间戳
   endDate?: number;  // 时间戳
+  reminderAt?: number; // 提醒时间戳
   isCompleted: boolean;
   order: number;           // 排序顺序
   parentTaskId?: string;   // 父任务 ID (用于层级)
@@ -22,6 +23,7 @@ export interface CreateTaskInput {
   planType: PlanType;
   startDate: number;
   endDate?: number;
+  reminderAt?: number;
   parentTaskId?: string;
 }
 
@@ -32,6 +34,7 @@ export interface UpdateTaskInput {
   planType?: PlanType;
   startDate?: number;
   endDate?: number | null; // null 表示清除结束日期
+  reminderAt?: number | null; // null 表示清除提醒
   isCompleted?: boolean;
   order?: number;
   parentTaskId?: string;

@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'rea
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { Input, Button } from '../../components/common';
 import { DatePicker } from '../../components/DatePicker';
+import { ReminderPicker } from '../../components/ReminderPicker';
+import { ensureNotificationPermissions } from '../../services/notificationService';
 import { useTaskStore } from '../../stores/taskStore';
 import { useTheme, ThemeColors } from '../../theme';
 import type { PlanType } from '../../types';
@@ -34,6 +36,7 @@ export const TaskDetailScreen: React.FC = () => {
   const [planType, setPlanType] = useState<PlanType>('daily');
   const [startDate, setStartDate] = useState(Date.now());
   const [endDate, setEndDate] = useState<number | undefined>(undefined);
+  const [reminderAt, setReminderAt] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     if (existingTask) {
@@ -42,14 +45,18 @@ export const TaskDetailScreen: React.FC = () => {
       setPlanType(existingTask.planType);
       setStartDate(existingTask.startDate);
       setEndDate(existingTask.endDate);
+      setReminderAt(existingTask.reminderAt);
     } else if (parentTask) {
       // 新建子任务：继承父的 planType/startDate/endDate
       setPlanType(parentTask.planType);
       setStartDate(parentTask.startDate);
       setEndDate(parentTask.endDate);
+      // 子任务提醒独立设置，不继承父
+      setReminderAt(undefined);
     } else {
       // 新建独立任务：默认无结束日期
       setEndDate(undefined);
+      setReminderAt(undefined);
     }
   }, [existingTask, parentTask]);
 
@@ -64,6 +71,14 @@ export const TaskDetailScreen: React.FC = () => {
       return;
     }
 
+    // 设了未来提醒时请求通知权限（拒绝则提示，但仍保存）
+    if (reminderAt && reminderAt > Date.now()) {
+      const granted = await ensureNotificationPermissions();
+      if (!granted) {
+        Alert.alert('提示', '未开启通知权限，提醒将无法发送。请在系统设置中开启通知。');
+      }
+    }
+
     try {
       if (existingTask) {
         await updateTask(existingTask.id, {
@@ -73,6 +88,7 @@ export const TaskDetailScreen: React.FC = () => {
           startDate,
           // null 表示清除结束日期（updateTask 据此写 NULL）；undefined 才是"不更新"
           endDate: endDate ?? null,
+          reminderAt: reminderAt ?? null,
         });
       } else if (parentTask) {
         // 创建子任务：planType/startDate/endDate 由 createTask 强制继承父值，这里仍传以保持一致
@@ -82,6 +98,7 @@ export const TaskDetailScreen: React.FC = () => {
           planType: parentTask.planType,
           startDate: parentTask.startDate,
           endDate: parentTask.endDate,
+          reminderAt,
           parentTaskId: parentTask.id,
         });
       } else {
@@ -91,6 +108,7 @@ export const TaskDetailScreen: React.FC = () => {
           planType,
           startDate,
           endDate,
+          reminderAt,
         });
       }
       router.back();
@@ -294,6 +312,16 @@ export const TaskDetailScreen: React.FC = () => {
               placeholder="未设置（单日任务可不填）"
             />
           )}
+        </View>
+
+        {/* 提醒（可选，子任务可独立设置） */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>提醒（可选）</Text>
+          <ReminderPicker
+            value={reminderAt}
+            onChange={setReminderAt}
+            onClear={() => setReminderAt(undefined)}
+          />
         </View>
 
         {/* 子任务列表（当前任务是父任务时显示） */}

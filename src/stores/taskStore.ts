@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Task, CreateTaskInput, UpdateTaskInput } from '../types';
 import * as queries from '../database/queries';
+import { scheduleTaskReminder, cancelTaskReminder } from '../services/notificationService';
 
 interface TaskState {
   tasks: Task[];
@@ -45,6 +46,9 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   addTask: async (input: CreateTaskInput) => {
     const newTask = await queries.createTask(input);
     set((state) => ({ tasks: [...state.tasks, newTask] }));
+    if (newTask.reminderAt) {
+      await scheduleTaskReminder(newTask.id, newTask.title, newTask.reminderAt);
+    }
     return newTask;
   },
 
@@ -67,6 +71,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
               ...input,
               // ...input 会带入 endDate: null（清除），这里归一化为 undefined，保持 Task.endDate: number | undefined
               endDate: input.endDate === undefined ? task.endDate : (input.endDate ?? undefined),
+              // reminderAt 同理归一化（null 清除 -> undefined）
+              reminderAt: input.reminderAt === undefined ? task.reminderAt : (input.reminderAt ?? undefined),
               isCompleted: input.isCompleted ?? task.isCompleted,
               updatedAt: now,
             };
@@ -79,9 +85,23 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         }),
       };
     });
+
+    // 提醒变更：取消旧的，按新值重新调度（null 清除则仅取消）
+    if (input.reminderAt !== undefined) {
+      if (input.reminderAt === null) {
+        await cancelTaskReminder(id);
+      } else {
+        const task = get().tasks.find((t) => t.id === id);
+        await scheduleTaskReminder(id, task?.title ?? '', input.reminderAt);
+      }
+    }
   },
 
   deleteTask: async (id: string) => {
+    // 取消该任务及其子任务的提醒
+    await cancelTaskReminder(id);
+    const children = get().tasks.filter((t) => t.parentTaskId === id);
+    await Promise.all(children.map((c) => cancelTaskReminder(c.id)));
     await queries.deleteTask(id);
     set((state) => ({
       // 同时移除该任务及其所有子任务
@@ -101,6 +121,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       await queries.setTaskAndChildrenCompleted(id, target);
     } else {
       await queries.updateTask(id, { isCompleted: target });
+    }
+    // 完成时取消提醒（已完成不再打扰）；取消完成不自动恢复
+    if (target) {
+      await cancelTaskReminder(id);
+      const children = get().tasks.filter((t) => t.parentTaskId === id);
+      await Promise.all(children.map((c) => cancelTaskReminder(c.id)));
     }
     set((state) => ({
       tasks: state.tasks.map((t) =>

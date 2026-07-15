@@ -11,6 +11,7 @@ const mapRow = (row: any): Task => ({
   planType: row.plan_type,
   startDate: row.start_date,
   endDate: row.end_date ?? undefined,
+  reminderAt: row.reminder_at ?? undefined,
   isCompleted: row.is_completed === 1,
   order: row.sort_order,
   parentTaskId: row.parent_task_id ?? undefined,
@@ -48,6 +49,8 @@ export const createTask = async (input: CreateTaskInput): Promise<Task> => {
   let startDate = input.startDate;
   let endDate = input.endDate;
   let parentTaskId = input.parentTaskId || null;
+  // 提醒时间不随父任务继承，子任务可独立设置
+  const reminderAt = input.reminderAt;
 
   if (parentTaskId) {
     const parent = await getTaskById(parentTaskId);
@@ -72,8 +75,8 @@ export const createTask = async (input: CreateTaskInput): Promise<Task> => {
     const sort_order = (result?.max_order ?? -1) + 1;
 
     await db.runAsync(
-      `INSERT INTO tasks (id, title, description, plan_type, start_date, end_date, is_completed, sort_order, parent_task_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO tasks (id, title, description, plan_type, start_date, end_date, is_completed, sort_order, parent_task_id, reminder_at, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         input.title,
@@ -84,6 +87,7 @@ export const createTask = async (input: CreateTaskInput): Promise<Task> => {
         0,
         sort_order,
         parentTaskId,
+        reminderAt || null,
         now,
         now,
       ]
@@ -99,6 +103,7 @@ export const createTask = async (input: CreateTaskInput): Promise<Task> => {
       planType,
       startDate,
       endDate,
+      reminderAt,
       isCompleted: false,
       order: 0,
       parentTaskId: parentTaskId || undefined,
@@ -150,6 +155,10 @@ export const updateTask = async (
     if (input.parentTaskId !== undefined) {
       updates.push('parent_task_id = ?');
       values.push(input.parentTaskId);
+    }
+    if (input.reminderAt !== undefined) {
+      updates.push('reminder_at = ?');
+      values.push(input.reminderAt);
     }
 
     updates.push('updated_at = ?');

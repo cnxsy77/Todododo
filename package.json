@@ -15,6 +15,7 @@
   "description": "",
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/datetimepicker": "9.1.0",
     "@types/react": "~19.2.14",
     "date-fns": "^3.6.0",
     "expo": "^56.0.12",
@@ -23,6 +24,7 @@
     "expo-document-picker": "~56.0.4",
     "expo-file-system": "~56.0.8",
     "expo-linking": "~56.0.14",
+    "expo-notifications": "~56.0.20",
     "expo-router": "~56.2.11",
     "expo-sharing": "~56.0.18",
     "expo-sqlite": "~56.0.5",

@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { runMigrations } from '../src/database/migrations';
+import { initNotifications } from '../src/services/notificationService';
 import { StyleSheet, Platform } from 'react-native';
 import { useThemeStore } from '../src/stores/themeStore';
 import { useTheme } from '../src/theme';
@@ -25,6 +26,7 @@ export default function RootLayout() {
 
       try {
         await runMigrations();
+        await initNotifications();
         console.log('Database initialized successfully');
       } catch (error) {
         console.error('Failed to initialize database:', error);

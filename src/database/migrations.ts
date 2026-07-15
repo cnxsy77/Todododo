@@ -2,7 +2,7 @@ import { getDatabase } from './schema';
 import { Platform } from 'react-native';
 
 // 数据库迁移版本
-const CURRENT_VERSION = 2;
+const CURRENT_VERSION = 3;
 
 interface MigrationVersion {
   version: number;
@@ -132,6 +132,11 @@ export const runMigrations = async (): Promise<void> => {
             [cat.id, cat.name, cat.type, cat.icon, cat.color, now]
           );
         }
+      }
+
+      // 版本 3: 任务提醒字段（时间戳，null=无提醒）
+      if (currentVersion < 3) {
+        await db.execAsync('ALTER TABLE tasks ADD COLUMN reminder_at INTEGER');
       }
 
       // 插入版本号
