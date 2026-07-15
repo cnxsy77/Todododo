@@ -10,7 +10,7 @@ import type { Task, PlanType, TaskWithChildren } from '../types';
  *
  * @returns flat: 范围内的父任务（带 children）；grouped: 按 range.start 分组的父任务树
  */
-const buildTree = (
+export const buildTree = (
   tasks: Task[],
   planType: PlanType,
   ranges: { start: number; end: number }[]
