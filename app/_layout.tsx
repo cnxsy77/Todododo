@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { runMigrations } from '../src/database/migrations';
 import { initNotifications } from '../src/services/notificationService';
-import { StyleSheet, Platform } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { useThemeStore } from '../src/stores/themeStore';
 import { useTheme } from '../src/theme';
 
@@ -18,12 +18,6 @@ export default function RootLayout() {
     loadTheme();
 
     const init = async () => {
-      // Web 端不支持 expo-sqlite
-      if (Platform.OS === 'web') {
-        console.log('Web platform: skipping database initialization');
-        return;
-      }
-
       try {
         await runMigrations();
         await initNotifications();

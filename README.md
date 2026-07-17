@@ -5,7 +5,7 @@
 ## 平台支持
 
 - ✅ **Android / iOS**：受支持的完整平台，数据库（expo-sqlite）与全部功能可用。
-- ⚠️ **Web**：仅用于 UI 预览。expo-sqlite 在 Web 端使用 WebStorage 降级（返回空结果），数据库读写不可用，因此任务/交易/预算等数据功能在 Web 端不可用。如需完整功能请在真机或模拟器上运行。
+- ✅ **Web**：数据库可用——通过 `sql.js`（SQLite WASM）适配器替代 expo-sqlite 的 Web 降级，数据持久化到 IndexedDB，任务/交易/预算等数据功能可在 Web 端正常使用并刷新后保留。已知限制：数据导入受 `expo-file-system` legacy 在 Web 无文件读取实现所限不可用；本地通知在 Web 不可用。
 
 ## 功能特性
 
@@ -151,3 +151,7 @@ npm run android
 ## License
 
 ISC
+
+
+### 补充
+记录定金尾款

@@ -1,5 +1,4 @@
 import { getDatabase } from './schema';
-import { Platform } from 'react-native';
 
 // 数据库迁移版本
 const CURRENT_VERSION = 3;
@@ -8,14 +7,8 @@ interface MigrationVersion {
   version: number;
 }
 
-// 运行迁移
+// 运行迁移（Web 端走 webSqlite 适配器，同样执行真实建表/迁移）
 export const runMigrations = async (): Promise<void> => {
-  // Web 端 expo-sqlite 使用 WebStorage 降级（返回空结果），跳过真实迁移
-  if (Platform.OS === 'web') {
-    console.log('Web platform: skipping migrations');
-    return;
-  }
-
   const db = await getDatabase();
 
   await db.withTransactionAsync(async () => {

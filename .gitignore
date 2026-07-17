@@ -75,3 +75,6 @@ skills-lock.json
 
 expo-env.d.ts
 # @end expo-cli
+
+# Web SQLite wasm（postinstall 由 scripts/copy-sql-wasm.js 生成，不入库）
+public/sql-wasm.wasm

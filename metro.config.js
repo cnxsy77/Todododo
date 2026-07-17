@@ -6,19 +6,20 @@ const config = getDefaultConfig(__dirname, {
   unstable_allowRequireContext: true,
 });
 
-// 添加别名配置
-config.resolver.extraNodeModules = {
-  'expo-sqlite': path.resolve(__dirname, 'src/database/expo-sqlite.mock.js'),
-};
+// Web 端用 sql.js 适配器替代 expo-sqlite（native 仍走真实 node_modules/expo-sqlite）。
+// 适配器实现见 src/database/webSqlite.ts：真实 SQLite 语义 + IndexedDB 持久化，
+// 替代原“返回空”的 Web 降级实现。
+const WEB_SQLITE = path.resolve(__dirname, 'src/database/webSqlite.ts');
 
-// 修复 expo-sqlite 的 Web 端兼容性问题
-// 在 Web 端使用 mock 模块代替原生模块
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  // 处理 expo-sqlite 的 Web 端导入
-  if (moduleName === 'expo-sqlite' && platform === 'web') {
+  // Web 端 expo-sqlite 及其子模块统一指向 webSqlite 适配器
+  if (
+    platform === 'web' &&
+    (moduleName === 'expo-sqlite' || moduleName.startsWith('expo-sqlite/'))
+  ) {
     return {
       type: 'sourceFile',
-      filePath: path.resolve(__dirname, 'src/database/expo-sqlite.mock.js'),
+      filePath: WEB_SQLITE,
     };
   }
 
@@ -27,14 +28,6 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     return {
       type: 'sourceFile',
       filePath: require.resolve('@expo/websql/custom/index.js'),
-    };
-  }
-
-  // 处理 expo-sqlite 子模块的导入
-  if (moduleName.startsWith('expo-sqlite/') && platform === 'web') {
-    return {
-      type: 'sourceFile',
-      filePath: path.resolve(__dirname, 'src/database/expo-sqlite.mock.js'),
     };
   }
 
